@@ -1,0 +1,319 @@
+name: ${COMPOSE_PROJECT_NAME:-homelab}
+
+networks:
+  proxy:
+    name: proxy
+  internal:
+    name: internal
+
+volumes:
+  portainer_data:
+  dozzle_data:
+  homarr_data:
+  jellyfin_config:
+  vaultwarden_data:
+  immich_pgdata:
+  immich_model_cache:
+  kuma_data:
+  stirling_data:
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --serversTransport.insecureSkipVerify=true
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../env/traefik-users.example:/run/secrets/traefik-users:ro
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST}`)
+      - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik-users
+      - traefik.http.routers.traefik.middlewares=traefik-auth
+
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: tailscale
+    hostname: cubi-homelab
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    volumes:
+      - ${APPDATA_ROOT}/tailscale/state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_EXTRA_ARGS=--advertise-tags=tag:server
+
+  portainer:
+    image: portainer/portainer-ce:2.27.1
+    container_name: portainer
+    restart: unless-stopped
+    profiles: ["portainer"]
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+
+  dozzle:
+    image: amir20/dozzle:v8.14.7
+    container_name: dozzle
+    restart: unless-stopped
+    profiles: ["dozzle"]
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - dozzle_data:/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST}`)
+      - traefik.http.routers.dozzle.entrypoints=websecure
+      - traefik.http.services.dozzle.loadbalancer.server.port=8080
+
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homarr
+    restart: unless-stopped
+    volumes:
+      - homarr_data:/appdata
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homarr.rule=Host(`${HOMARR_HOST}`)
+      - traefik.http.routers.homarr.entrypoints=websecure
+      - traefik.http.services.homarr.loadbalancer.server.port=7575
+
+  jellyfin:
+    image: linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_SERVER_URL}
+    volumes:
+      - jellyfin_config:/config
+      - ${MEDIA_ROOT}/video:/data/video
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_HOST}`)
+      - traefik.http.routers.jellyfin.entrypoints=websecure
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      - TZ=${TZ}
+      - DOMAIN=https://${VAULTWARDEN_HOST}
+      - SIGNUPS_ALLOWED=${VAULTWARDEN_SIGNUPS_ALLOWED}
+      - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
+      - WEBSOCKET_ENABLED=true
+    volumes:
+      - vaultwarden_data:/data
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.vaultwarden.rule=Host(`${VAULTWARDEN_HOST}`)
+      - traefik.http.routers.vaultwarden.entrypoints=websecure
+      - traefik.http.services.vaultwarden.loadbalancer.server.port=80
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${APPDATA_ROOT}/homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+
+  samba:
+    image: dockurr/samba
+    container_name: samba
+    restart: unless-stopped
+    environment:
+      NAME: HomeLab
+      USER: ${SAMBA_USERNAME}
+      PASS: ${SAMBA_PASSWORD}
+    ports:
+      - 445:445
+    volumes:
+      - ${MEDIA_ROOT}:/storage
+      - ${APPDATA_ROOT}/samba/smb.conf:/etc/samba/smb.conf:ro
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich_server
+    restart: unless-stopped
+    depends_on:
+      immich-redis:
+        condition: service_healthy
+      immich-postgres:
+        condition: service_healthy
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - TZ=${TZ}
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=${IMMICH_DB_USER}
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=${IMMICH_DB_NAME}
+      - REDIS_HOSTNAME=immich-redis
+    volumes:
+      - ${MEDIA_ROOT}/immich/library:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.immich.rule=Host(`${IMMICH_HOST}`)
+      - traefik.http.routers.immich.entrypoints=websecure
+      - traefik.http.services.immich.loadbalancer.server.port=2283
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release-openvino
+    container_name: immich_machine_learning
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    volumes:
+      - immich_model_cache:/cache
+    networks:
+      - internal
+
+  immich-redis:
+    image: valkey/valkey:8
+    container_name: immich_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    container_name: immich_postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IMMICH_DB_USER} -d ${IMMICH_DB_NAME}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    environment:
+      - POSTGRES_USER=${IMMICH_DB_USER}
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_DB=${IMMICH_DB_NAME}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - immich_pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime_kuma
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - kuma_data:/app/data
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kuma.rule=Host(`${KUMA_HOST}`)
+      - traefik.http.routers.kuma.entrypoints=websecure
+      - traefik.http.services.kuma.loadbalancer.server.port=3001
+
+  stirling-pdf:
+    image: frooodle/s-pdf:latest
+    container_name: stirling_pdf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - stirling_data:/configs
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.stirling.rule=Host(`${STIRLING_HOST}`)
+      - traefik.http.routers.stirling.entrypoints=websecure
+      - traefik.http.services.stirling.loadbalancer.server.port=8080
