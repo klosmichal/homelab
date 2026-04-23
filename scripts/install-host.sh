@@ -26,6 +26,8 @@ systemctl enable docker
 systemctl start docker
 
 ufw allow 22/tcp
+ufw allow 53/tcp
+ufw allow 53/udp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 445/tcp
