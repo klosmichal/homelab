@@ -7,7 +7,6 @@ networks:
     name: internal
 
 volumes:
-  portainer_data:
   dozzle_data:
   homarr_data:
   jellyfin_config:
@@ -19,15 +18,14 @@ volumes:
 
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      test: ["CMD-SHELL", "exit 0"]
       interval: 30s
-      timeout: 5s
+      timeout: 3s
       retries: 3
-      start_period: 20s
     command:
       - --api.dashboard=true
       - --api.insecure=false
@@ -71,28 +69,10 @@ services:
       - TS_USERSPACE=false
       - TS_EXTRA_ARGS=--advertise-tags=tag:server
 
-  portainer:
-    image: portainer/portainer-ce:2.27.1
-    container_name: portainer
-    restart: unless-stopped
-    profiles: ["portainer"]
-    command: -H unix:///var/run/docker.sock
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    networks:
-      - proxy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
-      - traefik.http.routers.portainer.entrypoints=websecure
-      - traefik.http.services.portainer.loadbalancer.server.port=9000
-
   dozzle:
     image: amir20/dozzle:v8.14.7
     container_name: dozzle
     restart: unless-stopped
-    profiles: ["dozzle"]
     healthcheck:
       test: ["CMD", "/dozzle", "healthcheck"]
       interval: 30s
@@ -317,3 +297,13 @@ services:
       - traefik.http.routers.stirling.rule=Host(`${STIRLING_HOST}`)
       - traefik.http.routers.stirling.entrypoints=websecure
       - traefik.http.services.stirling.loadbalancer.server.port=8080
+
+  dnsmasq:
+    image: strm/dnsmasq
+    container_name: dnsmasq
+    restart: unless-stopped
+    volumes:
+      - ../etc/dnsmasq.d/homelab.conf:/etc/dnsmasq.conf:ro
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN

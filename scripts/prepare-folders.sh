@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cp -n "$ROOT_DIR/env/.env.example" "$ROOT_DIR/env/.env" || true
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+cp --update=none "$ROOT_DIR/env/.env.example" "$ROOT_DIR/env/.env" 2>/dev/null || true
 set -a
 source "$ROOT_DIR/env/.env"
 set +a
 
 sudo mkdir -p \
-  "$BASE_DIR" \
-  "$BASE_DIR/homeassistant/config" \
-  "$BASE_DIR/tailscale/state" \
-  "$BASE_DIR/samba" \
-  "$MEDIA_DIR/video" \
-  "$MEDIA_DIR/immich/library"
+  "$APPDATA_ROOT" \
+  "$APPDATA_ROOT/homeassistant/config" \
+  "$APPDATA_ROOT/tailscale/state" \
+  "$APPDATA_ROOT/samba" \
+  "$MEDIA_ROOT/video" \
+  "$MEDIA_ROOT/immich/library"
 
-if [[ ! -f "$BASE_DIR/samba/smb.conf" ]]; then
-cat <<SMB | sudo tee "$BASE_DIR/samba/smb.conf" >/dev/null
+if [[ ! -f "$APPDATA_ROOT/samba/smb.conf" ]]; then
+cat <<SMB | sudo tee "$APPDATA_ROOT/samba/smb.conf" >/dev/null
 [global]
    workgroup = WORKGROUP
    server string = HomeLab Samba Server
