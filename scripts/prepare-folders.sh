@@ -10,36 +10,22 @@ set +a
 
 sudo mkdir -p \
   "$APPDATA_ROOT" \
+  "$APPDATA_ROOT/adguardhome/conf" \
+  "$APPDATA_ROOT/adguardhome/work" \
   "$APPDATA_ROOT/homeassistant/config" \
   "$APPDATA_ROOT/tailscale/state" \
   "$APPDATA_ROOT/samba" \
   "$MEDIA_ROOT/video" \
   "$MEDIA_ROOT/immich/library"
 
-if [[ ! -f "$APPDATA_ROOT/samba/smb.conf" ]]; then
-cat <<SMB | sudo tee "$APPDATA_ROOT/samba/smb.conf" >/dev/null
-[global]
-   workgroup = WORKGROUP
-   server string = HomeLab Samba Server
-   map to guest = Bad User
-   log file = /var/log/samba/log.%m
-   max log size = 1000
-   server role = standalone server
-   obey pam restrictions = yes
-   unix password sync = yes
-   passwd program = /usr/bin/passwd %u
-   passwd chat = *Enter\\snew\\s*password:* %n\\n *Retype\\snew\\s*password:* %n\\n *password\\supdated\\ssuccessfully* .
-   pam password change = yes
-   usershare allow guests = yes
+sudo chown -R "${PUID}:${PGID}" "$MEDIA_ROOT"
 
-[media]
-   path = /storage
-   browseable = yes
-   read only = no
-   guest ok = no
-   create mask = 0664
-   directory mask = 0775
-SMB
+if [[ ! -f "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml" ]]; then
+  sudo cp "$ROOT_DIR/config/adguardhome/AdGuardHome.yaml" "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml"
+fi
+
+if [[ ! -f "$APPDATA_ROOT/samba/smb.conf" ]]; then
+  sudo cp "$ROOT_DIR/config/samba/smb.conf" "$APPDATA_ROOT/samba/smb.conf"
 fi
 
 echo "Folders are ready. Fill in passwords in env/.env and edit smb.conf if needed."

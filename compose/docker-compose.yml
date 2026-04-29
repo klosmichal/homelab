@@ -7,14 +7,16 @@ networks:
     name: internal
 
 volumes:
+  letsencrypt:
   dozzle_data:
-  homarr_data:
   jellyfin_config:
   vaultwarden_data:
   immich_pgdata:
   immich_model_cache:
   kuma_data:
   stirling_data:
+  filebrowser_data:
+  filebrowser_db:
 
 services:
   traefik:
@@ -26,15 +28,21 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
     command:
       - --api.dashboard=true
-      - --api.insecure=false
+      - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --serversTransport.insecureSkipVerify=true
       - --log.level=INFO
     ports:
@@ -43,15 +51,42 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../env/traefik-users.example:/run/secrets/traefik-users:ro
+      - letsencrypt:/letsencrypt
     networks:
       - proxy
     labels:
       - traefik.enable=true
       - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST}`)
       - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.tls.certresolver=letsencrypt
       - traefik.http.routers.traefik.service=api@internal
       - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik-users
       - traefik.http.routers.traefik.middlewares=traefik-auth
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ports:
+      - "${HOST_LAN_IP}:53:53/tcp"
+      - "${HOST_LAN_IP}:53:53/udp"
+    volumes:
+      - ${APPDATA_ROOT}/adguardhome/work:/opt/adguardhome/work
+      - ${APPDATA_ROOT}/adguardhome/conf:/opt/adguardhome/conf
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adguardhome.rule=Host(`${ADGUARD_HOST}`)
+      - traefik.http.routers.adguardhome.entrypoints=websecure
+      - traefik.http.routers.adguardhome.tls.certresolver=letsencrypt
+      - traefik.http.services.adguardhome.loadbalancer.server.port=3000
 
   tailscale:
     image: tailscale/tailscale:stable
@@ -69,12 +104,23 @@ services:
       - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
-      - TS_EXTRA_ARGS=--advertise-tags=tag:server
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    profiles: [cloudflared]
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - proxy
 
   dozzle:
     image: amir20/dozzle:v8.14.7
     container_name: dozzle
     restart: unless-stopped
+    profiles: [dozzle]
     healthcheck:
       test: ["CMD", "/dozzle", "healthcheck"]
       interval: 30s
@@ -90,23 +136,26 @@ services:
       - traefik.enable=true
       - traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST}`)
       - traefik.http.routers.dozzle.entrypoints=websecure
+      - traefik.http.routers.dozzle.tls.certresolver=letsencrypt
       - traefik.http.services.dozzle.loadbalancer.server.port=8080
 
-  homarr:
-    image: ghcr.io/homarr-labs/homarr:latest
-    container_name: homarr
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
     restart: unless-stopped
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_HOST}
     volumes:
-      - homarr_data:/appdata
+      - ${APPDATA_ROOT}/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - proxy
-      - internal
     labels:
       - traefik.enable=true
-      - traefik.http.routers.homarr.rule=Host(`${HOMARR_HOST}`)
-      - traefik.http.routers.homarr.entrypoints=websecure
-      - traefik.http.services.homarr.loadbalancer.server.port=7575
+      - traefik.http.routers.homepage.rule=Host(`${HOMEPAGE_HOST}`)
+      - traefik.http.routers.homepage.entrypoints=websecure
+      - traefik.http.routers.homepage.tls.certresolver=letsencrypt
+      - traefik.http.services.homepage.loadbalancer.server.port=3000
 
   jellyfin:
     image: linuxserver/jellyfin:latest
@@ -129,6 +178,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_HOST}`)
       - traefik.http.routers.jellyfin.entrypoints=websecure
+      - traefik.http.routers.jellyfin.tls.certresolver=letsencrypt
       - traefik.http.services.jellyfin.loadbalancer.server.port=8096
 
   vaultwarden:
@@ -136,7 +186,7 @@ services:
     container_name: vaultwarden
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80 || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:80 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -156,6 +206,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.vaultwarden.rule=Host(`${VAULTWARDEN_HOST}`)
       - traefik.http.routers.vaultwarden.entrypoints=websecure
+      - traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt
       - traefik.http.services.vaultwarden.loadbalancer.server.port=80
 
   homeassistant:
@@ -185,6 +236,30 @@ services:
       - ${MEDIA_ROOT}:/storage
       - ${APPDATA_ROOT}/samba/smb.conf:/etc/samba/smb.conf:ro
 
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:80/health || exit 0"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ${MEDIA_ROOT}:/srv
+      - filebrowser_data:/config
+      - filebrowser_db:/database
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.filebrowser.rule=Host(`${FILEBROWSER_HOST}`)
+      - traefik.http.routers.filebrowser.entrypoints=websecure
+      - traefik.http.routers.filebrowser.tls.certresolver=letsencrypt
+      - traefik.http.services.filebrowser.loadbalancer.server.port=80
+
   immich-server:
     image: ghcr.io/immich-app/immich-server:release
     container_name: immich_server
@@ -213,6 +288,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.immich.rule=Host(`${IMMICH_HOST}`)
       - traefik.http.routers.immich.entrypoints=websecure
+      - traefik.http.routers.immich.tls.certresolver=letsencrypt
       - traefik.http.services.immich.loadbalancer.server.port=2283
 
   immich-machine-learning:
@@ -264,7 +340,7 @@ services:
     container_name: uptime_kuma
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001 || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3001 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -278,6 +354,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.kuma.rule=Host(`${KUMA_HOST}`)
       - traefik.http.routers.kuma.entrypoints=websecure
+      - traefik.http.routers.kuma.tls.certresolver=letsencrypt
       - traefik.http.services.kuma.loadbalancer.server.port=3001
 
   stirling-pdf:
@@ -285,7 +362,7 @@ services:
     container_name: stirling_pdf
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080 || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -298,14 +375,5 @@ services:
       - traefik.enable=true
       - traefik.http.routers.stirling.rule=Host(`${STIRLING_HOST}`)
       - traefik.http.routers.stirling.entrypoints=websecure
+      - traefik.http.routers.stirling.tls.certresolver=letsencrypt
       - traefik.http.services.stirling.loadbalancer.server.port=8080
-
-  dnsmasq:
-    image: strm/dnsmasq
-    container_name: dnsmasq
-    restart: unless-stopped
-    volumes:
-      - ../etc/dnsmasq.d/homelab.conf:/etc/dnsmasq.conf:ro
-    network_mode: "host"
-    cap_add:
-      - NET_ADMIN

@@ -1,252 +1,247 @@
-# Step-by-step installation guide
+# Installation guide
 
-## 1. Assumptions
+Complete from-scratch setup for the homelab stack on MSI Cubi N ADL S-226BEU (Intel N200, 16 GB RAM).
 
-- Mini PC: MSI Cubi N ADL S-226BEU with Intel N200 and Intel UHD Graphics.[web:2][web:3]
-- Operating system: Ubuntu Server 24.04 LTS.
-- Disk 1: system + service data.
-- Disk 2: `restic` backup target over USB.
+---
 
-## 2. Install the operating system
+## 1. Install Ubuntu Server 24.04 LTS
 
-1. Install Ubuntu Server 24.04 LTS.
-2. Configure a static DHCP lease in the router for the mini PC.
-3. Enable SSH during installation.
-4. Log in and update the system:
+1. Boot the installer, select **Ubuntu Server (minimized)**.
+2. Enable OpenSSH during installation.
+3. After first boot, update the system:
    ```bash
-   sudo apt update && sudo apt full-upgrade -y
-   sudo reboot
+   sudo apt update && sudo apt full-upgrade -y && sudo reboot
    ```
+
+---
+
+## 2. Configure a static IP
+
+Either set a DHCP reservation in your router (simplest), or configure a static address with Netplan. A ready-to-adapt example is in `config/netplan/01-cubi-static.yaml.example`.
+
+```bash
+# find your interface name
+ip link
+
+# copy and edit the example
+sudo cp config/netplan/01-cubi-static.yaml.example /etc/netplan/01-cubi-static.yaml
+sudo nano /etc/netplan/01-cubi-static.yaml   # replace interface name if needed
+
+sudo netplan try && sudo netplan apply
+```
+
+Target: `192.168.10.10/24`, gateway `192.168.10.1`.
+
+---
 
 ## 3. Clone the repository
 
 ```bash
-git clone <INSERT_YOUR_REPO_URL> homelab-msi-cubi
-cd homelab-msi-cubi
+git clone https://github.com/klosmichal/homelab.git ~/homelab
+cd ~/homelab
 cp env/env.production.example env/.env
 ```
 
-## 4. Prepare the host
+---
+
+## 4. Set up Cloudflare
+
+You need a domain on Cloudflare for HTTPS certificates (DNS-01 challenge) and the optional public Vaultwarden tunnel.
+
+### 4a. Point your domain to Cloudflare nameservers
+
+In your domain registrar's control panel, replace the nameservers with the two Cloudflare assigns (shown in Cloudflare dashboard → your domain → DNS → Nameservers). Wait for propagation.
+
+### 4b. Create a Cloudflare API token
+
+Cloudflare dashboard → My Profile → API Tokens → **Create Token** → use the *Edit zone DNS* template, scope it to your domain. Copy the token — you only see it once.
+
+---
+
+## 5. Edit `env/.env`
+
+Open `~/homelab/env/.env` and fill in all values:
+
+| Variable | Description |
+|---|---|
+| `CF_DNS_API_TOKEN` | Cloudflare API token from step 4b |
+| `ACME_EMAIL` | Your email for Let's Encrypt notifications |
+| `CLOUDFLARE_TUNNEL_TOKEN` | Tunnel token from step 12 (fill in later) |
+| `IMMICH_DB_PASSWORD` | Strong random password |
+| `VAULTWARDEN_ADMIN_TOKEN` | Strong random token (`openssl rand -base64 48`) |
+| `RESTIC_PASSWORD` | Strong random passphrase for backup encryption |
+| `SAMBA_PASSWORD` | Samba share password |
+| `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |
+
+All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if yours differs.
+
+---
+
+## 6. Create the Traefik basic auth file
+
+The Traefik dashboard is protected by HTTP basic auth. Generate a hashed password with `htpasswd`:
+
+```bash
+sudo apt install -y apache2-utils
+htpasswd -nb admin YOUR_PASSWORD > ~/homelab/env/traefik-users
+```
+
+The compose file mounts `env/traefik-users` into the Traefik container.
+
+---
+
+## 7. Mount the backup disk
+
+```bash
+lsblk -f    # find your USB disk UUID
+
+sudo mkdir -p /mnt/backup-usb
+
+# add to /etc/fstab:
+echo 'UUID=YOUR-UUID /mnt/backup-usb ext4 defaults,nofail 0 2' | sudo tee -a /etc/fstab
+
+sudo mount -a
+```
+
+---
+
+## 8. Prepare the host
+
+Installs Docker Engine, UFW firewall rules, Intel GPU drivers, and tools:
 
 ```bash
 sudo bash scripts/install-host.sh
+```
+
+---
+
+## 9. Prepare data directories and AdGuard config
+
+Creates all required directories under `/srv/homelab` and `/srv/data`, and deploys the pre-configured `AdGuardHome.yaml` (with the `*.michalklos.com` DNS rewrite):
+
+```bash
 bash scripts/prepare-folders.sh
 ```
 
-## 5. Edit environment variables
+---
 
-Edit `env/.env` and set the deployment-specific values:
-- all passwords,
-- service hostnames,
-- data and backup paths,
-- `TAILSCALE_AUTHKEY` if you want auto-join.
+## 10. Start the stack
 
-## 6. Mount the backup disk
+```bash
+cd ~/homelab
+just up
+```
 
-1. Identify the disk UUID:
+Watch startup:
+```bash
+just logs
+```
+
+All containers should reach `healthy` or `running` within ~60 seconds. Check with:
+```bash
+just ps
+```
+
+---
+
+## 11. Configure AdGuard Home
+
+1. On first launch AdGuard Home needs an admin user. Connect to the homelab and run:
    ```bash
-   lsblk -f
+   docker exec -it adguardhome /opt/adguardhome/AdGuardHome -c /opt/adguardhome/conf/AdGuardHome.yaml --web-addr 0.0.0.0:3000
    ```
-2. Add an entry to `/etc/fstab`, for example:
-   ```fstab
-   UUID=XXXX-XXXX /mnt/backup-usb ext4 defaults,nofail 0 2
-   ```
-3. Create the mount point and mount it:
-   ```bash
-   sudo mkdir -p /mnt/backup-usb
-   sudo mount -a
-   ```
+   Actually, just open `http://192.168.10.10:3000` directly (bypassing DNS since it isn't set up yet) and follow the setup wizard. The DNS rewrite for `*.michalklos.com → 192.168.10.10` is already in the config — you only need to create an admin password.
 
-## 7. Start services
+2. Verify the rewrite is active: AdGuard Home → Filters → DNS rewrites — you should see `*.michalklos.com → 192.168.10.10`.
 
-Core stack only:
-```bash
-docker compose --env-file ./env/.env -f ./compose/docker-compose.yml up -d
-```
+---
 
-Core stack + Dozzle:
-```bash
-docker compose --profile dozzle --env-file ./env/.env -f ./compose/docker-compose.yml up -d
-```
+## 12. Configure your router to use AdGuard Home as DNS
 
-Core stack + Portainer:
-```bash
-docker compose --profile portainer --env-file ./env/.env -f ./compose/docker-compose.yml up -d
-```
+In your router's DHCP settings, set the **primary DNS server** to `192.168.10.10`. This makes all devices on your network resolve `*.michalklos.com` locally.
 
-Core stack + both:
-```bash
-docker compose --profile dozzle --profile portainer --env-file ./env/.env -f ./compose/docker-compose.yml up -d
-```
+After saving, reconnect your devices to pick up the new DNS (or wait for DHCP lease renewal).
 
-## 8. First configuration after startup
+At this point `https://jellyfin.michalklos.com` should load in your browser with a valid Let's Encrypt certificate (Traefik requests it automatically on first access — allow up to a minute).
 
-1. Open `https://home.home.arpa` and configure Homarr.
-2. Open `http://<HA_IP>:8123` for Home Assistant, because it runs in `host` network mode.
-3. Open `https://kuma.home.arpa` and add HTTP/TCP monitors for your services.
-4. Configure Kuma notifications through `ntfy`, Telegram, or SMTP.[web:22][web:25]
-5. Open Jellyfin and configure Intel VA-API / QSV hardware acceleration.
-6. Open Immich and verify transcoding settings.
-7. If Portainer is enabled, open `https://portainer.home.arpa` and configure the admin account.
-8. If Dozzle is enabled, open `https://logs.home.arpa` and verify log access.
+---
 
-## 9. Configure local DNS
+## 13. Configure Tailscale
 
-### Option A: router
-The best option is to define local DNS records directly on the router if the firmware supports it.
+Tailscale provides secure remote access to all services without exposing ports publicly.
 
-### Option B: dnsmasq on the mini PC
-Configure `dnsmasq` so that it resolves the local `home.arpa` zone, then point your router or clients to the mini PC as DNS.
-
-Example `/etc/dnsmasq.d/homelab.conf`:
-```conf
-address=/traefik.home.arpa/192.168.10.10
-address=/home.home.arpa/192.168.10.10
-address=/immich.home.arpa/192.168.10.10
-address=/jellyfin.home.arpa/192.168.10.10
-address=/vault.home.arpa/192.168.10.10
-address=/ha.home.arpa/192.168.10.10
-address=/portainer.home.arpa/192.168.10.10
-address=/logs.home.arpa/192.168.10.10
-address=/kuma.home.arpa/192.168.10.10
-address=/pdf.home.arpa/192.168.10.10
-```
-
-Then restart dnsmasq:
-```bash
-sudo systemctl restart dnsmasq
-```
-
-## 10. Weekly backup
-
-Add a cron entry:
-```bash
-crontab -e
-```
-
-Entry:
-```cron
-0 3 * * 0 /bin/bash /path/to/homelab-msi-cubi/scripts/backup.sh >> /var/log/homelab-backup.log 2>&1
-```
-
-This runs a backup every Sunday at 03:00.
-
-## 11. Tailscale
-
-If you do not use `TAILSCALE_AUTHKEY`, authenticate manually:
+If you left `TAILSCALE_AUTHKEY` empty, authenticate manually:
 ```bash
 docker exec -it tailscale tailscale up
 ```
 
-Then use MagicDNS names or Tailscale IPs to access the machine remotely.
+Follow the printed URL to approve the device in the Tailscale admin console. Install the Tailscale app on your phone and laptop to access the homelab remotely.
 
-## 12. Test the stack
+---
 
-```bash
-bash scripts/healthcheck-smoke.sh
-```
+## 14. Set up the Cloudflare Tunnel (Vaultwarden public access)
 
-## 13. Updates
+This makes `vault.michalklos.com` reachable from anywhere without Tailscale.
 
-Every 2 to 4 weeks:
-```bash
-docker compose --env-file ./env/.env -f ./compose/docker-compose.yml pull
-docker compose --env-file ./env/.env -f ./compose/docker-compose.yml up -d
-```
-
-Update the host system as well:
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-## 14. Router configuration and network segmentation
-
-Yes — **you should additionally configure the router**, because containerization alone does not solve network segmentation. TP-Link Guest Network can isolate guest clients from the local network, as long as you do not enable guest access to the local network.[page:1][web:32]
-
-With two Archer BE230 routers in a mesh setup, the best practical layout is:
-- **main / private network** — PCs, phones, TVs, laptops, server,
-- **IoT / guest-like network** — washer, vacuum, low-trust smart devices,
-- optionally a separate guest network if you often allow third-party devices into your Wi‑Fi.
-
-### Where to place the mini PC
-
-**Place the mini PC in the private network, not the IoT network.** The IoT segment should be treated as lower trust and limited to devices that need internet access but should not be able to scan or initiate connections freely to your server and computers.[web:38]
-
-This also makes operations simpler: if the mini PC stays in the private network, it is easier to keep backups, Samba, and administrative panels outside the reach of untrusted smart devices.[web:38]
-
-### What to configure on TP-Link
-
-1. Keep the **main SSID** as the private network.
-2. Enable **Guest Network** as the IoT network, preferably with 2.4 GHz support because many IoT devices still require it.[page:1]
-3. **Do not enable** `Allow Guest to access my local network`, because that removes the separation between IoT and your private devices.[page:1][web:32]
-4. If the firmware offers client isolation or Device Isolation, use it for the least trusted devices as an additional safeguard.[web:37]
-5. Use separate strong passwords for the IoT and private networks.
-6. Keep firmware updated on both mesh routers.[web:38]
-
-### Limitations of this approach
-
-On a typical consumer router, Guest Network provides **useful isolation**, but it is still not the same as full VLANs with dedicated firewall rules. The best-practice security model for IoT is a segment where devices can reach the internet but cannot initiate connections into the private network, while the private network may access IoT only when needed for control.[web:38]
-
-In practice, the Archer BE230 will most likely implement this through Guest Network rather than through enterprise-style VLAN/ACL features. For a home setup that prioritizes simplicity and safety without replacing the entire network, that is still a very reasonable choice.[page:1][web:36]
-
-### Service impact
-
-- **Home Assistant**: keep it in the private network; some IoT integrations may still require exceptions or vendor cloud integration.
-- **Samba, Portainer, Dozzle, Traefik, Uptime Kuma**: private network only, plus remote access through Tailscale.
-- **Jellyfin, Immich**: private network; external access should usually go through Tailscale.
-- **Vaultwarden**: private network, with optional public exposure only through Cloudflare Tunnel if you decide to add it later.[web:21][web:30]
-
-### Recommended security model
-
-- private network: your PCs, phones, TVs, mini PC,
-- IoT network: smart appliances, vacuum, cloud-managed cameras, and other lower-trust devices,
-- administrative access to the homelab only from the private network or through Tailscale,
-- no public exposure of admin panels,
-- optional Vaultwarden-only public exception later.
-
-
-## 15. Optional local dnsmasq file deployment
-
-A ready-to-adapt sample file is included in `config/dnsmasq/homelab.conf.example`. Copy it to `/etc/dnsmasq.d/homelab.conf`, adjust the IP addresses if needed, and restart the service.[web:97][web:100]
-
-```bash
-sudo cp config/dnsmasq/homelab.conf.example /etc/dnsmasq.d/homelab.conf
-sudo systemctl restart dnsmasq
-```
-
-## 16. Optional just task runner
-
-If you install `just`, you can use short operational commands such as `just up`, `just update`, and `just backup` instead of typing the full Docker Compose commands every time. This is purely for operator convenience.[web:96][web:99]
-
-
-## 17. Optional static IP on Ubuntu with Netplan
-
-If you prefer a fully static address on the mini PC instead of DHCP reservation, a ready-to-adapt Netplan file is included in `config/netplan/01-cubi-static.yaml.example`. Ubuntu Server 24.04 uses Netplan for network configuration, and a static address is a common approach for service hosts that must keep a stable LAN IP.[web:106][web:107]
-
-1. Identify the actual interface name on your machine:
-   ```bash
-   ip link
+1. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com) → Networks → Tunnels → **Create a tunnel** → Cloudflared.
+2. Name it (e.g. `homelab`) and save.
+3. Copy the tunnel token shown on the next screen.
+4. Add it to `~/homelab/env/.env`:
    ```
-2. Replace `enp1s0` in the example file if your interface name is different.
-3. Copy the file into `/etc/netplan/`:
-   ```bash
-   sudo cp config/netplan/01-cubi-static.yaml.example /etc/netplan/01-cubi-static.yaml
+   CLOUDFLARE_TUNNEL_TOKEN=eyJ...
    ```
-4. Apply the configuration:
+5. On the **Public Hostnames** tab, add:
+   - Subdomain: `vault`, Domain: `michalklos.com`, Type: `HTTPS`, URL: `traefik:443`
+6. Save the tunnel.
+7. Start the cloudflared container:
    ```bash
-   sudo netplan try
-   sudo netplan apply
+   cd ~/homelab && just up-cloudflared
    ```
 
-The included example is already aligned to `192.168.10.10/24`, gateway `192.168.10.1`, and the local `home.arpa` search domain.[web:106][web:112]
+Vaultwarden will now be reachable at `https://vault.michalklos.com` from anywhere.
 
-## 18. Recommended Tailscale onboarding for this host
+---
 
-For a long-lived server, use a normal or pre-approved auth key rather than an ephemeral one. Tailscale documents ephemeral keys mainly for short-lived workloads, while reusable or pre-approved keys are a better fit for persistent servers.[web:111][web:113][web:116]
+## 15. First-time service configuration
 
-The safest workflow is:
-- leave `TAILSCALE_AUTHKEY` empty for the first deployment,
-- start the stack,
-- run `docker exec -it tailscale tailscale up`,
-- approve the device in Tailscale if needed,
-- then decide later whether you want to automate re-provisioning with an auth key.
+### Jellyfin
+Open `https://jellyfin.michalklos.com` → follow the setup wizard → in **Dashboard → Playback → Transcoding**, enable hardware acceleration: **Intel QuickSync (QSV)** or **Video Acceleration API (VAAPI)**, device `/dev/dri/renderD128`.
+
+### Immich
+Open `https://immich.michalklos.com` → create admin account. Hardware ML acceleration (OpenVINO) is pre-configured via the `immich-machine-learning` container.
+
+### Home Assistant
+Home Assistant runs in host network mode. Open `http://192.168.10.10:8123` for first-time setup, or `https://ha.michalklos.com` once DNS is working.
+
+### Vaultwarden
+Open `https://vault.michalklos.com/admin` and enter your `VAULTWARDEN_ADMIN_TOKEN` to access the admin panel. Disable signups after creating your account: set `VAULTWARDEN_SIGNUPS_ALLOWED=false` in `.env` and `just up`.
+
+### Homepage
+Drop YAML widget configs into `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
+
+---
+
+## 16. Schedule weekly backups
+
+```bash
+crontab -e
+```
+
+Add:
+```
+0 3 * * 0 /bin/bash /home/mklos/homelab/scripts/backup.sh >> /var/log/homelab-backup.log 2>&1
+```
+
+This runs every Sunday at 03:00. The script dumps the Immich PostgreSQL database and runs `restic backup` with retention (8 weekly, 6 monthly snapshots).
+
+---
+
+## 17. Ongoing updates
+
+```bash
+cd ~/homelab
+just update          # pull latest images, recreate containers
+sudo apt update && sudo apt upgrade -y   # host OS
+```
+
+Run every 2–4 weeks.

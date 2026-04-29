@@ -1,0 +1,45 @@
+http:
+  address: 0.0.0.0:3000
+users: []
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  upstream_dns:
+    - 1.1.1.1
+    - 1.0.0.1
+  bootstrap_dns:
+    - 1.1.1.1
+    - 1.0.0.1
+  cache_size: 4194304
+  protection_enabled: true
+  blocking_mode: default
+  rewrites: []
+filtering:
+  rewrites:
+    - domain: '*.michalklos.com'
+      answer: 192.168.10.10
+  protection_disabled_until: null
+  safe_browsing_enabled: false
+  safe_search_enabled: false
+  parental_enabled: false
+querylog:
+  enabled: true
+  interval: 720h
+statistics:
+  enabled: true
+  interval: 720h
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://big.oisd.nl/
+    name: OISD Big
+    id: 2
+  - enabled: true
+    url: https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt
+    name: HaGeZi Multi PRO
+    id: 3
+schema_version: 28
