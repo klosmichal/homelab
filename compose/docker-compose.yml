@@ -50,7 +50,7 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../env/traefik-users.example:/run/secrets/traefik-users:ro
+      - ../env/traefik-users:/run/secrets/traefik-users:ro
       - letsencrypt:/letsencrypt
     networks:
       - proxy

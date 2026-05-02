@@ -86,6 +86,12 @@ sudo apt install -y apache2-utils
 htpasswd -nb admin YOUR_PASSWORD > ~/homelab/env/traefik-users
 ```
 
+Or without `apache2-utils`:
+
+```bash
+docker run --rm httpd:2 htpasswd -nb admin YOUR_PASSWORD > ~/homelab/env/traefik-users
+```
+
 The compose file mounts `env/traefik-users` into the Traefik container.
 
 ---
