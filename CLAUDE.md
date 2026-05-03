@@ -64,7 +64,7 @@ Home Assistant and Tailscale use host networking; all other services use the bri
 Key env variable groups:
 - `HOST_*` — server identity and network (LAN IP: `192.168.10.10`)
 - `*_ROOT` — filesystem mount points (`APPDATA_ROOT=/srv/homelab`, `MEDIA_ROOT=/srv/data`)
-- `*_HOST` — service DNS names (`JELLYFIN_HOST=jellyfin.lab.home`, etc.)
+- `*_HOST` — service DNS names (`JELLYFIN_HOST=jellyfin.michalklos.com`, etc.)
 - `PUID`/`PGID` — UID/GID for linuxserver.io containers (default `1000`)
 - `TZ=Europe/Warsaw`
 
@@ -79,7 +79,3 @@ Key env variable groups:
 ## Key docs
 
 - `docs/INSTALL.md` — full step-by-step deployment
-- `docs/DECISIONS.md` — why specific technology choices were made (Home Assistant Container vs Supervised, `.lab.home` domain, Tailscale vs port forwarding, etc.)
-- `docs/DNS_AND_REMOTE_ACCESS.md` — DNS and remote access strategy
-- `docs/PRODUCTION.md` — production values and hardware-specific notes
-- `docs/OPERATIONS.md` — day-2 operations reference

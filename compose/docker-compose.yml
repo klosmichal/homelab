@@ -223,6 +223,12 @@ services:
       - ${APPDATA_ROOT}/homeassistant/config:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homeassistant.rule=Host(`${HOMEASSISTANT_HOST}`)
+      - traefik.http.routers.homeassistant.entrypoints=websecure
+      - traefik.http.routers.homeassistant.tls.certresolver=letsencrypt
+      - traefik.http.services.homeassistant.loadbalancer.server.url=http://${HOST_LAN_IP}:8123
 
   samba:
     image: dockurr/samba
