@@ -48,6 +48,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../env/traefik-users:/run/secrets/traefik-users:ro
@@ -228,7 +230,7 @@ services:
       - traefik.http.routers.homeassistant.rule=Host(`${HOMEASSISTANT_HOST}`)
       - traefik.http.routers.homeassistant.entrypoints=websecure
       - traefik.http.routers.homeassistant.tls.certresolver=letsencrypt
-      - traefik.http.services.homeassistant.loadbalancer.server.url=http://${HOST_LAN_IP}:8123
+      - traefik.http.services.homeassistant.loadbalancer.server.url=http://host.docker.internal:8123
 
   samba:
     image: dockurr/samba

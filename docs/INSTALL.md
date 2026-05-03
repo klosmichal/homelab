@@ -217,7 +217,22 @@ Open `https://jellyfin.michalklos.com` → follow the setup wizard → in **Dash
 Open `https://immich.michalklos.com` → create admin account. Hardware ML acceleration (OpenVINO) is pre-configured via the `immich-machine-learning` container.
 
 ### Home Assistant
-Home Assistant runs in host network mode. Open `http://192.168.10.10:8123` for first-time setup, or `https://ha.michalklos.com` once DNS is working.
+Home Assistant runs in `network_mode: host` so it can access Bluetooth, mDNS, and other LAN protocols. Because of this it can't join the Docker `proxy` network, so Traefik reaches it via `host.docker.internal` (mapped to the Docker bridge gateway via `extra_hosts: host-gateway` on the Traefik service) rather than by container name.
+
+`configuration.yaml` must trust the Docker proxy subnet as a reverse proxy — otherwise HA rejects forwarded headers. The relevant section (already in place):
+
+```yaml
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - 192.168.10.10
+    - 172.18.0.0/16   # Docker proxy network
+```
+
+If you ever recreate the stack and the `proxy` network gets a different subnet, update this value and restart HA (`docker restart homeassistant`).
+
+Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or `https://ha.michalklos.com` once DNS is working.
 
 ### Vaultwarden
 Open `https://vault.michalklos.com/admin` and enter your `VAULTWARDEN_ADMIN_TOKEN` to access the admin panel. Disable signups after creating your account: set `VAULTWARDEN_SIGNUPS_ALLOWED=false` in `.env` and `just up`.
