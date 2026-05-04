@@ -232,6 +232,12 @@ http:
 
 If you ever recreate the stack and the `proxy` network gets a different subnet, update this value and restart HA (`docker restart homeassistant`).
 
+UFW must also allow port 8123 from Docker's private range and the LAN — this is handled by `install-host.sh`. If HA is unreachable through Traefik (504), check that these UFW rules are present:
+```bash
+sudo ufw status | grep 8123
+# should show rules for 172.16.0.0/12 and 192.168.0.0/16
+```
+
 Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or `https://ha.michalklos.com` once DNS is working.
 
 ### Vaultwarden

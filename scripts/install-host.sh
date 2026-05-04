@@ -31,6 +31,9 @@ ufw allow 53/udp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 445/tcp
+# Home Assistant runs on host network; allow Docker containers (172.16/12) and LAN to reach it
+ufw allow from 172.16.0.0/12 to any port 8123 proto tcp
+ufw allow from 192.168.0.0/16 to any port 8123 proto tcp
 ufw --force enable
 
 echo "Host is ready. Next: fill in env/.env and run prepare-folders.sh"
