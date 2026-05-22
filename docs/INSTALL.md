@@ -56,6 +56,16 @@ In your domain registrar's control panel, replace the nameservers with the two C
 
 Cloudflare dashboard → My Profile → API Tokens → **Create Token** → use the *Edit zone DNS* template, scope it to your domain. Copy the token — you only see it once.
 
+### 4c. Get your NordVPN WireGuard private key (for the arr stack VPN)
+
+1. Go to **my.nordaccount.com** → **Services** → **NordVPN** → scroll to **Access token** → **Generate new token** (choose "doesn't expire").
+2. Run the following to extract the WireGuard private key:
+   ```bash
+   curl -s -u token:YOUR_ACCESS_TOKEN \
+     https://api.nordvpn.com/v1/users/services/credentials | jq -r .nordlynx_private_key
+   ```
+   Copy the output — this is your `NORDVPN_PRIVATE_KEY`.
+
 ---
 
 ## 5. Edit `env/.env`
@@ -66,14 +76,14 @@ Open `~/homelab/env/.env` and fill in all values:
 |---|---|
 | `CF_DNS_API_TOKEN` | Cloudflare API token from step 4b |
 | `ACME_EMAIL` | Your email for Let's Encrypt notifications |
-| `CLOUDFLARE_TUNNEL_TOKEN` | Tunnel token from step 12 (fill in later) |
 | `IMMICH_DB_PASSWORD` | Strong random password |
 | `VAULTWARDEN_ADMIN_TOKEN` | Strong random token (`openssl rand -base64 48`) |
 | `RESTIC_PASSWORD` | Strong random passphrase for backup encryption |
 | `SAMBA_PASSWORD` | Samba share password |
 | `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |
+| `NORDVPN_PRIVATE_KEY` | WireGuard private key from step 4c |
 
-All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if yours differs.
+All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if yours differs. The arr stack hosts (`SEERR_HOST`, `RADARR_HOST`, `SONARR_HOST`, `PROWLARR_HOST`, `BAZARR_HOST`, `QBITTORRENT_HOST`) are also pre-set.
 
 ---
 
@@ -121,12 +131,18 @@ sudo bash scripts/install-host.sh
 
 ---
 
-## 9. Prepare data directories and AdGuard config
+## 9. Prepare data directories and configs
 
-Creates all required directories under `/srv/homelab` and `/srv/data`, and deploys the pre-configured `AdGuardHome.yaml` (with the `*.michalklos.com` DNS rewrite):
+Creates all required directories under `/srv/homelab` and `/srv/data` (including arr stack directories), and seeds initial configs for AdGuard Home, Samba, and qBittorrent. Idempotent — safe to re-run after adding new services:
 
 ```bash
 bash scripts/prepare-folders.sh
+```
+
+To re-apply managed configs to running containers (AdGuard Home, Samba, qBittorrent) without recreating them:
+
+```bash
+just sync-config
 ```
 
 ---
@@ -185,30 +201,7 @@ Follow the printed URL to approve the device in the Tailscale admin console. Ins
 
 ---
 
-## 14. Set up the Cloudflare Tunnel (Vaultwarden public access)
-
-This makes `vault.michalklos.com` reachable from anywhere without Tailscale.
-
-1. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com) → Networks → Tunnels → **Create a tunnel** → Cloudflared.
-2. Name it (e.g. `homelab`) and save.
-3. Copy the tunnel token shown on the next screen.
-4. Add it to `~/homelab/env/.env`:
-   ```
-   CLOUDFLARE_TUNNEL_TOKEN=eyJ...
-   ```
-5. On the **Public Hostnames** tab, add:
-   - Subdomain: `vault`, Domain: `michalklos.com`, Type: `HTTPS`, URL: `traefik:443`
-6. Save the tunnel.
-7. Start the cloudflared container:
-   ```bash
-   cd ~/homelab && just up-cloudflared
-   ```
-
-Vaultwarden will now be reachable at `https://vault.michalklos.com` from anywhere.
-
----
-
-## 15. First-time service configuration
+## 14. First-time service configuration
 
 ### Jellyfin
 Open `https://jellyfin.michalklos.com` → follow the setup wizard → in **Dashboard → Playback → Transcoding**, enable hardware acceleration: **Intel QuickSync (QSV)** or **Video Acceleration API (VAAPI)**, device `/dev/dri/renderD128`.
@@ -240,15 +233,46 @@ sudo ufw status | grep 8123
 
 Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or `https://ha.michalklos.com` once DNS is working.
 
-### Vaultwarden
-Open `https://vault.michalklos.com/admin` and enter your `VAULTWARDEN_ADMIN_TOKEN` to access the admin panel. Disable signups after creating your account: set `VAULTWARDEN_SIGNUPS_ALLOWED=false` in `.env` and `just up`.
-
 ### Homepage
 Drop YAML widget configs into `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
 
+### Arr stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Bazarr)
+
+Configure in this order — each service's API key is needed by the next:
+
+**1. Prowlarr** (`https://prowlarr.michalklos.com`)
+- Create an admin account on first visit.
+- Add indexers: Settings → Indexers → Add Indexer.
+- Connect Radarr and Sonarr so indexers sync automatically: Settings → Apps → Add → Radarr (host: `radarr`, port: `7878`, API key from Radarr's Settings → General). Repeat for Sonarr (host: `sonarr`, port: `8989`).
+
+**2. Radarr** (`https://radarr.michalklos.com`)
+- Settings → Download Clients → Add → qBittorrent → Host: `gluetun`, Port: `8080`.
+- Settings → Media Management → Root Folders → Add → `/data/video/movies`.
+- Enable **Rename Movies** under Media Management.
+
+**3. Sonarr** (`https://sonarr.michalklos.com`)
+- Same as Radarr. Root folder: `/data/video/shows`.
+
+**4. Bazarr** (`https://bazarr.michalklos.com`)
+- Settings → Radarr → enable, host: `radarr`, port: `7878`, API key from Radarr.
+- Settings → Sonarr → enable, host: `sonarr`, port: `8989`, API key from Sonarr.
+- Settings → Languages → add profile: English (required), Polish (optional).
+- Settings → Providers → add at least one subtitle provider (e.g. OpenSubtitles).
+
+**5. Seerr** (`https://seerr.michalklos.com`)
+- First-visit wizard: connect Jellyfin → host: `jellyfin`, port: `8096`.
+- Add Radarr: host: `radarr`, port: `7878`, API key, default root folder `/data/video/movies`.
+- Add Sonarr: host: `sonarr`, port: `8989`, API key, default root folder `/data/video/shows`.
+- Create your admin account — this is the URL you share with household users.
+
+**qBittorrent notes**
+- On first start, a random WebUI password is printed to the container logs: `just logs qbittorrent | grep password`.
+- The host header validation is disabled by the seeded config so Traefik proxying works out of the box.
+- Set seeding limits to zero if you want downloads to stop seeding immediately: Tools → Options → BitTorrent → Seeding Limits → set ratio to `0`.
+
 ---
 
-## 16. Schedule weekly backups
+## 15. Schedule weekly backups
 
 ```bash
 crontab -e
@@ -263,7 +287,7 @@ This runs every Sunday at 03:00. The script dumps the Immich PostgreSQL database
 
 ---
 
-## 17. Ongoing updates
+## 16. Ongoing updates
 
 ```bash
 cd ~/homelab

@@ -3,11 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-cp --update=none "$ROOT_DIR/env/.env.example" "$ROOT_DIR/env/.env" 2>/dev/null || true
+cp --update=none "$ROOT_DIR/env/env.production.example" "$ROOT_DIR/env/.env" 2>/dev/null || true
 set -a
 source "$ROOT_DIR/env/.env"
 set +a
 
+# App data directories
 sudo mkdir -p \
   "$APPDATA_ROOT" \
   "$APPDATA_ROOT/adguardhome/conf" \
@@ -15,17 +16,36 @@ sudo mkdir -p \
   "$APPDATA_ROOT/homeassistant/config" \
   "$APPDATA_ROOT/tailscale/state" \
   "$APPDATA_ROOT/samba" \
-  "$MEDIA_ROOT/video" \
+  "$APPDATA_ROOT/gluetun" \
+  "$APPDATA_ROOT/qbittorrent/config/qBittorrent" \
+  "$APPDATA_ROOT/prowlarr/config" \
+  "$APPDATA_ROOT/radarr/config" \
+  "$APPDATA_ROOT/sonarr/config" \
+  "$APPDATA_ROOT/bazarr/config" \
+  "$APPDATA_ROOT/seerr/config"
+
+# Media directories
+sudo mkdir -p \
+  "$MEDIA_ROOT/video/movies" \
+  "$MEDIA_ROOT/video/shows" \
+  "$MEDIA_ROOT/downloads/complete" \
+  "$MEDIA_ROOT/downloads/incomplete" \
   "$MEDIA_ROOT/immich/library"
 
 sudo chown -R "${PUID}:${PGID}" "$MEDIA_ROOT"
 
+# Config files — copy only on first run; use just sync-config to re-apply
 if [[ ! -f "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml" ]]; then
   sudo cp "$ROOT_DIR/config/adguardhome/AdGuardHome.yaml" "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml"
 fi
 
 if [[ ! -f "$APPDATA_ROOT/samba/smb.conf" ]]; then
   sudo cp "$ROOT_DIR/config/samba/smb.conf" "$APPDATA_ROOT/samba/smb.conf"
+fi
+
+if [[ ! -f "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf" ]]; then
+  sudo cp "$ROOT_DIR/config/qbittorrent/qBittorrent.conf" "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf"
+  sudo chown "${PUID}:${PGID}" "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf"
 fi
 
 echo "Folders are ready. Fill in passwords in env/.env and edit smb.conf if needed."
