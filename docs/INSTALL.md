@@ -17,20 +17,7 @@ Complete from-scratch setup for the homelab stack on MSI Cubi N ADL S-226BEU (In
 
 ## 2. Configure a static IP
 
-Either set a DHCP reservation in your router (simplest), or configure a static address with Netplan. A ready-to-adapt example is in `config/netplan/01-cubi-static.yaml.example`.
-
-```bash
-# find your interface name
-ip link
-
-# copy and edit the example
-sudo cp config/netplan/01-cubi-static.yaml.example /etc/netplan/01-cubi-static.yaml
-sudo nano /etc/netplan/01-cubi-static.yaml   # replace interface name if needed
-
-sudo netplan try && sudo netplan apply
-```
-
-Target: `192.168.10.10/24`, gateway `192.168.10.1`.
+Set a DHCP reservation in your router for the server's MAC address, targeting `192.168.10.10`.
 
 ---
 
@@ -83,7 +70,7 @@ Open `~/homelab/env/.env` and fill in all values:
 | `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |
 | `NORDVPN_PRIVATE_KEY` | WireGuard private key from step 4c |
 
-All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if yours differs. The arr stack hosts (`SEERR_HOST`, `RADARR_HOST`, `SONARR_HOST`, `PROWLARR_HOST`, `BAZARR_HOST`, `QBITTORRENT_HOST`) are also pre-set.
+All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if differs.
 
 ---
 
@@ -93,13 +80,13 @@ The Traefik dashboard is protected by HTTP basic auth. Generate a hashed passwor
 
 ```bash
 sudo apt install -y apache2-utils
-htpasswd -nb admin YOUR_PASSWORD > ~/homelab/env/traefik-users
+htpasswd -nb admin YOUR_PASSWORD > ~/homelab/config/traefik/traefik-users
 ```
 
 Or without `apache2-utils`:
 
 ```bash
-docker run --rm httpd:2 htpasswd -nb admin YOUR_PASSWORD > ~/homelab/env/traefik-users
+docker run --rm httpd:2 htpasswd -nb admin YOUR_PASSWORD > ~/homelab/config/traefik/traefik-users
 ```
 
 The compose file mounts `env/traefik-users` into the Traefik container.
@@ -234,7 +221,26 @@ sudo ufw status | grep 8123
 Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or `https://ha.michalklos.com` once DNS is working.
 
 ### Homepage
-Drop YAML widget configs into `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
+The dashboard config lives in `config/homepage/` in the repo and is synced to `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
+
+Widget secrets (API keys, passwords) are **not** stored in `services.yaml`. Instead they are kept in `env/.env` and injected into the container as `HOMEPAGE_VAR_*` variables; `services.yaml` only references them via `{{HOMEPAGE_VAR_...}}` placeholders, which Homepage substitutes at runtime. To enable the widgets, fill in these values in `env/.env`:
+
+| Variable | Where to get it |
+|---|---|
+| `ADGUARD_USERNAME` / `ADGUARD_PASSWORD` | Your AdGuard Home admin login |
+| `IMMICH_API_KEY` | Immich → Account Settings → API Keys |
+| `JELLYFIN_API_KEY` | Jellyfin → Dashboard → API Keys |
+| `HOMEASSISTANT_TOKEN` | Home Assistant → Profile → Long-lived access tokens |
+| `QBITTORRENT_USERNAME` / `QBITTORRENT_PASSWORD` | qBittorrent WebUI login |
+| `SEERR_API_KEY` | Seerr → Settings → General → API Key |
+| `PROWLARR_API_KEY` | Prowlarr → Settings → General |
+| `RADARR_API_KEY` | Radarr → Settings → General |
+| `SONARR_API_KEY` | Sonarr → Settings → General |
+| `BAZARR_API_KEY` | Bazarr → Settings → General |
+
+After updating `.env`, recreate the container so it picks up the new environment: `docker compose --env-file ../env/.env up -d homepage`.
+
+Uptime Kuma's widget needs a published status-page slug (`homelab` in `services.yaml`) — create one under Uptime Kuma → Status Pages, or change the slug to match yours.
 
 ### Arr stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Bazarr)
 

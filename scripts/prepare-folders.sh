@@ -48,4 +48,21 @@ if [[ ! -f "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf" ]]; t
   sudo chown "${PUID}:${PGID}" "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf"
 fi
 
+# Traefik basic auth — protects all *_HOST routes via the traefik-auth middleware
+TRAEFIK_USERS_FILE="$ROOT_DIR/config/traefik/traefik-users"
+if [[ ! -f "$TRAEFIK_USERS_FILE" ]]; then
+  echo ""
+  echo "Traefik basic auth (secures all services behind *.michalklos.com):"
+  read -rp "  Username [admin]: " TRAEFIK_USER
+  TRAEFIK_USER="${TRAEFIK_USER:-admin}"
+  read -rsp "  Password: " TRAEFIK_PASS
+  echo
+  if command -v htpasswd &>/dev/null; then
+    htpasswd -nb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
+  else
+    docker run --rm httpd:2 htpasswd -nb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
+  fi
+  echo "  Written to env/traefik-users"
+fi
+
 echo "Folders are ready. Fill in passwords in env/.env and edit smb.conf if needed."

@@ -4,4 +4,4 @@
 *.log
 *.pid
 .DS_Store
-env/traefik-users
+config/traefik/traefik-users

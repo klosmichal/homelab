@@ -51,7 +51,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../env/traefik-users:/run/secrets/traefik-users:ro
+      - ../config/traefik/traefik-users:/run/secrets/traefik-users:ro
       - letsencrypt:/letsencrypt
     networks:
       - proxy
@@ -135,6 +135,18 @@ services:
     restart: unless-stopped
     environment:
       - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_HOST}
+      - HOMEPAGE_VAR_ADGUARD_USERNAME=${ADGUARD_USERNAME}
+      - HOMEPAGE_VAR_ADGUARD_PASSWORD=${ADGUARD_PASSWORD}
+      - HOMEPAGE_VAR_IMMICH_API_KEY=${IMMICH_API_KEY}
+      - HOMEPAGE_VAR_JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
+      - HOMEPAGE_VAR_HOMEASSISTANT_TOKEN=${HOMEASSISTANT_TOKEN}
+      - HOMEPAGE_VAR_QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME}
+      - HOMEPAGE_VAR_QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD}
+      - HOMEPAGE_VAR_SEERR_API_KEY=${SEERR_API_KEY}
+      - HOMEPAGE_VAR_PROWLARR_API_KEY=${PROWLARR_API_KEY}
+      - HOMEPAGE_VAR_RADARR_API_KEY=${RADARR_API_KEY}
+      - HOMEPAGE_VAR_SONARR_API_KEY=${SONARR_API_KEY}
+      - HOMEPAGE_VAR_BAZARR_API_KEY=${BAZARR_API_KEY}
     volumes:
       - ${APPDATA_ROOT}/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
