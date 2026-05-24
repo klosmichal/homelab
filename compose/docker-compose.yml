@@ -387,7 +387,6 @@ services:
       - traefik.http.routers.qbittorrent.rule=Host(`${QBITTORRENT_HOST}`)
       - traefik.http.routers.qbittorrent.entrypoints=websecure
       - traefik.http.routers.qbittorrent.tls.certresolver=letsencrypt
-      - traefik.http.routers.qbittorrent.middlewares=traefik-auth
       - traefik.http.services.qbittorrent.loadbalancer.server.port=8080
 
   qbittorrent:
