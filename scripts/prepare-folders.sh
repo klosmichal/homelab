@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-cp --update=none "$ROOT_DIR/env/env.production.example" "$ROOT_DIR/env/.env" 2>/dev/null || true
+cp --update=none "$ROOT_DIR/env.production.example" "$ROOT_DIR/.env" 2>/dev/null || true
 set -a
-source "$ROOT_DIR/env/.env"
+source "$ROOT_DIR/.env"
 set +a
 
 # App data directories
@@ -23,6 +23,8 @@ sudo mkdir -p \
   "$APPDATA_ROOT/sonarr/config" \
   "$APPDATA_ROOT/bazarr/config" \
   "$APPDATA_ROOT/seerr/config"
+
+sudo chown -R 1000:1000 "$APPDATA_ROOT/seerr"
 
 # Media directories
 sudo mkdir -p \
@@ -65,4 +67,4 @@ if [[ ! -f "$TRAEFIK_USERS_FILE" ]]; then
   echo "  Written to env/traefik-users"
 fi
 
-echo "Folders are ready. Fill in passwords in env/.env and edit smb.conf if needed."
+echo "Folders are ready. Fill in passwords in .env and edit smb.conf if needed."

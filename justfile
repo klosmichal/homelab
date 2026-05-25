@@ -5,28 +5,28 @@ default:
 
 # Copy the production example environment file
 init-env:
-  cp -n env/env.production.example env/.env
+  cp -n env.production.example .env
 
 # Start all services, or a specific one: just up radarr
 up *service:
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml up -d {{service}}
+  docker compose up -d {{service}}
 
 # Stop all services, or a specific one: just stop radarr
 stop *service:
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml stop {{service}}
+  docker compose stop {{service}}
 
 # Pull and recreate all services, or a specific one: just update radarr
 update *service:
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml pull {{service}}
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml up -d {{service}}
+  docker compose pull {{service}}
+  docker compose up -d {{service}}
 
 # Show current container status
 ps:
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml ps
+  docker compose ps
 
 # Follow logs for all services, or a specific one: just logs radarr
 logs *service:
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml logs -f --tail=200 {{service}}
+  docker compose logs -f --tail=200 {{service}}
 
 # Run the backup script
 backup:
@@ -50,4 +50,4 @@ sync-config:
   cp config/adguardhome/AdGuardHome.yaml ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf/AdGuardHome.yaml
   cp config/samba/smb.conf ${APPDATA_ROOT:-/srv/homelab}/samba/smb.conf
   cp config/qbittorrent/qBittorrent.conf ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf
-  docker compose --env-file ./env/.env -f ./compose/docker-compose.yml restart adguardhome samba qbittorrent
+  docker compose restart adguardhome samba qbittorrent

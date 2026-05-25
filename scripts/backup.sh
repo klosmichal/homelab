@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 set -a
-source "$ROOT_DIR/env/.env"
+source "$ROOT_DIR/.env"
 set +a
 
 STAMP=$(date +%F-%H%M%S)

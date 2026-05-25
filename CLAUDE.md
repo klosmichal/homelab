@@ -11,7 +11,7 @@ Self-hosted homelab infrastructure for an MSI Cubi N ADL S-226BEU mini PC (Intel
 All operations use `just` (task runner). Run from repo root:
 
 ```bash
-just init-env      # Copy env/env.production.example → env/.env (first-time setup)
+just init-env      # Copy env.production.example → .env (first-time setup)
 just up            # Start core stack
 just up-dozzle     # Core + Dozzle log viewer
 just up-full       # Core + Dozzle + Portainer
@@ -26,8 +26,8 @@ just sync-config   # Copy configs from repo to runtime locations and restart aff
 
 Direct docker compose (when not using just):
 ```bash
-cd compose && docker compose --env-file ../env/.env up -d
-docker compose --env-file ../env/.env --profile dozzle --profile portainer up -d
+docker compose up -d
+docker compose --profile dozzle --profile portainer up -d
 ```
 
 Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh`, etc.
@@ -36,7 +36,7 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 
 ### Single-file stack
 
-`compose/docker-compose.yml` defines all ~18 services. Two networks:
+`docker-compose.yml` defines all ~18 services. Two networks:
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
 - `internal` — databases and caches only (never touch Traefik)
 
@@ -50,16 +50,15 @@ AdGuard Home provides:
 - DNS rewrite: `*.michalklos.com` → `192.168.10.10`
 - Ad/tracker blocking via AdGuard DNS filter, OISD Big, and HaGeZi Multi PRO lists
 
-Remote access is Tailscale by default (mesh VPN, no port forwarding). Cloudflare Tunnel is optional for Vaultwarden only — profile `cloudflared` in `compose/docker-compose.yml`.
+Remote access is Tailscale by default (mesh VPN, no port forwarding). Cloudflare Tunnel is optional for Vaultwarden only — profile `cloudflared` in `docker-compose.yml`.
 
 Home Assistant and Tailscale use host networking; all other services use the bridge networks above.
 
 ### Configuration
 
-- `env/.env.example` — quick-start defaults
-- `env/env.production.example` — production values for this specific hardware (prefer this)
-- `env/.env` — actual secrets (gitignored, never committed)
-- `env/traefik-users.example` — htpasswd-format credentials for Traefik dashboard
+- `env.production.example` — production values for this specific hardware
+- `.env` — actual secrets (gitignored, never committed)
+- `config/traefik/traefik-users.example` — htpasswd-format credentials for Traefik dashboard
 
 Key env variable groups:
 - `HOST_*` — server identity and network (LAN IP: `192.168.10.10`)

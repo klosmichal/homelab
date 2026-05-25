@@ -26,7 +26,7 @@ Set a DHCP reservation in your router for the server's MAC address, targeting `1
 ```bash
 git clone https://github.com/klosmichal/homelab.git ~/homelab
 cd ~/homelab
-cp env/env.production.example env/.env
+cp env.production.example .env
 ```
 
 ---
@@ -55,9 +55,9 @@ Cloudflare dashboard → My Profile → API Tokens → **Create Token** → use 
 
 ---
 
-## 5. Edit `env/.env`
+## 5. Edit `.env`
 
-Open `~/homelab/env/.env` and fill in all values:
+Open `~/homelab/.env` and fill in all values:
 
 | Variable | Description |
 |---|---|
@@ -223,7 +223,7 @@ Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or 
 ### Homepage
 The dashboard config lives in `config/homepage/` in the repo and is synced to `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
 
-Widget secrets (API keys, passwords) are **not** stored in `services.yaml`. Instead they are kept in `env/.env` and injected into the container as `HOMEPAGE_VAR_*` variables; `services.yaml` only references them via `{{HOMEPAGE_VAR_...}}` placeholders, which Homepage substitutes at runtime. To enable the widgets, fill in these values in `env/.env`:
+Widget secrets (API keys, passwords) are **not** stored in `services.yaml`. Instead they are kept in `.env` and injected into the container as `HOMEPAGE_VAR_*` variables; `services.yaml` only references them via `{{HOMEPAGE_VAR_...}}` placeholders, which Homepage substitutes at runtime. To enable the widgets, fill in these values in `.env`:
 
 | Variable | Where to get it |
 |---|---|
@@ -238,7 +238,7 @@ Widget secrets (API keys, passwords) are **not** stored in `services.yaml`. Inst
 | `SONARR_API_KEY` | Sonarr → Settings → General |
 | `BAZARR_API_KEY` | Bazarr → Settings → General |
 
-After updating `.env`, recreate the container so it picks up the new environment: `docker compose --env-file ../env/.env up -d homepage`.
+After updating `.env`, recreate the container so it picks up the new environment: `docker compose up -d homepage`.
 
 Uptime Kuma's widget needs a published status-page slug (`homelab` in `services.yaml`) — create one under Uptime Kuma → Status Pages, or change the slug to match yours.
 
