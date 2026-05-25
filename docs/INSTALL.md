@@ -246,6 +246,13 @@ Uptime Kuma's widget needs a published status-page slug (`homelab` in `services.
 
 Configure in this order — each service's API key is needed by the next:
 
+**0. qBittorrent** (`https://qbit.michalklos.com`)
+- On first start a temporary password is printed to logs: `just logs qbittorrent | grep password`.
+- Log in with `admin` + temp password, then immediately set a permanent password: **Tools → Options → Web UI → Authentication**.
+- Do this **before** configuring Radarr/Sonarr — they store the password and will silently fail to add torrents if it changes later.
+- Set the default save path to `/data/downloads/complete`: **Tools → Options → Downloads → Default Save Path**.
+- Leave seeding limits disabled — Radarr/Sonarr remove torrents automatically after import (`removeCompletedDownloads` is enabled in both).
+
 **1. Prowlarr** (`https://prowlarr.michalklos.com`)
 - Create an admin account on first visit.
 - Add indexers: Settings → Indexers → Add Indexer.
