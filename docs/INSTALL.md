@@ -237,10 +237,9 @@ Widget secrets (API keys, passwords) are **not** stored in `services.yaml`. Inst
 | `RADARR_API_KEY` | Radarr → Settings → General |
 | `SONARR_API_KEY` | Sonarr → Settings → General |
 | `BAZARR_API_KEY` | Bazarr → Settings → General |
+| `PORTAINER_API_KEY` | Portainer → Account Settings → Access Tokens |
 
 After updating `.env`, recreate the container so it picks up the new environment: `docker compose up -d homepage`.
-
-Uptime Kuma's widget needs a published status-page slug (`homelab` in `services.yaml`) — create one under Uptime Kuma → Status Pages, or change the slug to match yours.
 
 ### Arr stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Bazarr)
 

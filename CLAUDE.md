@@ -13,8 +13,6 @@ All operations use `just` (task runner). Run from repo root:
 ```bash
 just init-env      # Copy env.production.example → .env (first-time setup)
 just up            # Start core stack
-just up-dozzle     # Core + Dozzle log viewer
-just up-full       # Core + Dozzle + Portainer
 just stop          # Stop all containers
 just update        # Pull latest images and restart
 just ps            # Container status
@@ -27,7 +25,6 @@ just sync-config   # Copy configs from repo to runtime locations and restart aff
 Direct docker compose (when not using just):
 ```bash
 docker compose up -d
-docker compose --profile dozzle --profile portainer up -d
 ```
 
 Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh`, etc.
@@ -40,7 +37,7 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
 - `internal` — databases and caches only (never touch Traefik)
 
-Two optional service profiles: `dozzle`, `portainer`.
+No optional profiles — all services run as part of the core stack.
 
 ### Networking model
 

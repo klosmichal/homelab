@@ -12,7 +12,7 @@ volumes:
   jellyfin_config:
   immich_pgdata:
   immich_model_cache:
-  kuma_data:
+  portainer_data:
   stirling_data:
   filebrowser_data:
   filebrowser_db:
@@ -110,7 +110,6 @@ services:
     image: amir20/dozzle:v8.14.7
     container_name: dozzle
     restart: unless-stopped
-    profiles: [dozzle]
     healthcheck:
       test: ["CMD", "/dozzle", "healthcheck"]
       interval: 30s
@@ -147,6 +146,7 @@ services:
       - HOMEPAGE_VAR_RADARR_API_KEY=${RADARR_API_KEY}
       - HOMEPAGE_VAR_SONARR_API_KEY=${SONARR_API_KEY}
       - HOMEPAGE_VAR_BAZARR_API_KEY=${BAZARR_API_KEY}
+      - HOMEPAGE_VAR_PORTAINER_API_KEY=${PORTAINER_API_KEY}
     volumes:
       - ${APPDATA_ROOT}/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -317,28 +317,21 @@ services:
     networks:
       - internal
 
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: uptime_kuma
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3001 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
     volumes:
-      - kuma_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
     networks:
       - proxy
-      - internal
     labels:
       - traefik.enable=true
-      - traefik.http.routers.kuma.rule=Host(`${KUMA_HOST}`)
-      - traefik.http.routers.kuma.entrypoints=websecure
-      - traefik.http.routers.kuma.tls.certresolver=letsencrypt
-      - traefik.http.services.kuma.loadbalancer.server.port=3001
-      - traefik.docker.network=proxy
+      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.tls.certresolver=letsencrypt
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
 
   stirling-pdf:
     image: frooodle/s-pdf:latest

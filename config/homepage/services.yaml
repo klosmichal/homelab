@@ -6,14 +6,15 @@
         description: Mesh VPN
         target: _blank
 
-    - Uptime Kuma:
-        icon: uptime-kuma.svg
-        href: https://kuma.michalklos.com
-        description: Monitoring
+    - Portainer:
+        icon: portainer.svg
+        href: https://portainer.michalklos.com
+        description: Container manager
         widget:
-          type: uptimekuma
-          url: http://uptime_kuma:3001
-          slug: homelab
+          type: portainer
+          url: http://portainer:9000
+          env: 1
+          key: "{{HOMEPAGE_VAR_PORTAINER_API_KEY}}"
 
     - AdGuard Home:
         icon: adguard-home.svg
