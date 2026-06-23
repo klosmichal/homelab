@@ -105,6 +105,7 @@ services:
       - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
+      - TS_ROUTES=192.168.10.0/24
 
   dozzle:
     image: amir20/dozzle:v8.14.7
@@ -334,7 +335,7 @@ services:
       - traefik.http.services.portainer.loadbalancer.server.port=9000
 
   stirling-pdf:
-    image: frooodle/s-pdf:latest
+    image: stirlingtools/stirling-pdf:latest
     container_name: stirling_pdf
     restart: unless-stopped
     healthcheck:

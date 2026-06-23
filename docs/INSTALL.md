@@ -179,12 +179,33 @@ At this point `https://jellyfin.michalklos.com` should load in your browser with
 
 Tailscale provides secure remote access to all services without exposing ports publicly.
 
+### 13a. Authenticate the node
+
 If you left `TAILSCALE_AUTHKEY` empty, authenticate manually:
 ```bash
 docker exec -it tailscale tailscale up
 ```
 
-Follow the printed URL to approve the device in the Tailscale admin console. Install the Tailscale app on your phone and laptop to access the homelab remotely.
+Follow the printed URL to approve the device in the Tailscale admin console.
+
+### 13b. Approve subnet routes
+
+The container advertises `192.168.10.0/24` as a subnet route so remote clients can reach LAN services (including AdGuard Home's DNS at `192.168.10.10`).
+
+In the [Tailscale admin console](https://login.tailscale.com/admin/machines):
+1. Click the `cubi-homelab` machine → **Edit route settings**
+2. Enable `192.168.10.0/24`
+
+### 13c. Configure split DNS
+
+This makes `*.michalklos.com` resolve correctly on remote devices without routing all traffic through the homelab.
+
+In the [Tailscale admin console](https://login.tailscale.com/admin/dns):
+1. Under **Nameservers** → **Add nameserver** → **Custom**
+2. Enter `192.168.10.10` (AdGuard Home)
+3. Check **Restrict to domain** and enter `michalklos.com`
+
+Remote devices (mobile, laptop) will then query AdGuard Home for `*.michalklos.com` → get `192.168.10.10` → reach Traefik via the subnet route.
 
 ---
 
