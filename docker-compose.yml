@@ -506,6 +506,45 @@ services:
       - traefik.http.routers.bazarr.middlewares=traefik-auth
       - traefik.http.services.bazarr.loadbalancer.server.port=6767
 
+  trek:
+    image: mauriceboe/trek:latest
+    container_name: trek
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=128m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=${TZ}
+      - APP_URL=https://${TREK_HOST}
+      - ENCRYPTION_KEY=${TREK_ENCRYPTION_KEY}
+    volumes:
+      - ${APPDATA_ROOT}/trek/data:/app/data
+      - ${APPDATA_ROOT}/trek/uploads:/app/uploads
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.trek.rule=Host(`${TREK_HOST}`)
+      - traefik.http.routers.trek.entrypoints=websecure
+      - traefik.http.routers.trek.tls.certresolver=letsencrypt
+      - traefik.http.services.trek.loadbalancer.server.port=3000
+
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
     container_name: seerr
