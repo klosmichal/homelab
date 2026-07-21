@@ -60,11 +60,11 @@ if [[ ! -f "$TRAEFIK_USERS_FILE" ]]; then
   read -rsp "  Password: " TRAEFIK_PASS
   echo
   if command -v htpasswd &>/dev/null; then
-    htpasswd -nb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
+    htpasswd -Bnb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
   else
-    docker run --rm httpd:2 htpasswd -nb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
+    docker run --rm httpd:2 htpasswd -Bnb "$TRAEFIK_USER" "$TRAEFIK_PASS" > "$TRAEFIK_USERS_FILE"
   fi
-  echo "  Written to env/traefik-users"
+  echo "  Written to config/traefik/traefik-users"
 fi
 
 echo "Folders are ready. Fill in passwords in .env and edit smb.conf if needed."

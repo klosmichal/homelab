@@ -26,6 +26,14 @@
           username: "{{HOMEPAGE_VAR_ADGUARD_USERNAME}}"
           password: "{{HOMEPAGE_VAR_ADGUARD_PASSWORD}}"
 
+    - Traefik:
+        icon: traefik.svg
+        href: https://traefik.michalklos.com
+        description: Reverse proxy
+        widget:
+          type: traefik
+          url: http://traefik:8080
+
 - Media & Home:
     - Immich:
         icon: immich.svg
