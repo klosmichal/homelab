@@ -11,7 +11,9 @@ http:
     insecure_enabled: false
   address: 0.0.0.0:3000
   session_ttl: 720h
-users: []
+users:
+  - name: admin
+    password: $2y$05$NvtaSOciU6Ciufq.3pqtq.jYh0Ct8YbnchLvGjZYTQi/M0Ylkn4sO
 auth_attempts: 5
 block_auth_min: 15
 http_proxy: ""
@@ -131,7 +133,9 @@ filters:
     name: HaGeZi's Pro Blocklist
     id: 1777193525
 whitelist_filters: []
-user_rules: []
+user_rules:
+  - '@@||ls.hit.gemius.pl^$client=''192.168.10.12'''
+  - ""
 dhcp:
   enabled: false
   interface_name: ""
