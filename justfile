@@ -41,6 +41,7 @@ pull-config:
   cp ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf/AdGuardHome.yaml config/adguardhome/AdGuardHome.yaml
   cp ${APPDATA_ROOT:-/srv/homelab}/samba/smb.conf config/samba/smb.conf
   cp ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf config/qbittorrent/qBittorrent.conf
+  cp ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth/config.toml config/gluetun/auth/config.toml
 
 # Copy all configs from repo to runtime locations and restart affected containers
 sync-config:
