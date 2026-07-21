@@ -1,0 +1,7 @@
+# Gluetun control-server auth (required since v3.40, default-deny).
+# Allows the Homepage widget to read the public IP without a key.
+# Only reachable on the internal Docker network, so unauthenticated is fine here.
+[[roles]]
+name = "homepage"
+routes = ["GET /v1/publicip/ip"]
+auth = "none"

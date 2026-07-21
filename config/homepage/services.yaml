@@ -13,7 +13,7 @@
         widget:
           type: portainer
           url: http://portainer:9000
-          env: 1
+          env: 3
           key: "{{HOMEPAGE_VAR_PORTAINER_API_KEY}}"
 
     - AdGuard Home:
@@ -35,6 +35,7 @@
           type: immich
           url: http://immich_server:2283
           key: "{{HOMEPAGE_VAR_IMMICH_API_KEY}}"
+          version: 2
 
     - Jellyfin:
         icon: jellyfin.svg

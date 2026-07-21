@@ -48,8 +48,10 @@ sync-config:
   mkdir -p ${APPDATA_ROOT:-/srv/homelab}/samba
   mkdir -p ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent
   mkdir -p ${APPDATA_ROOT:-/srv/homelab}/homepage/config
+  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth
   cp config/adguardhome/AdGuardHome.yaml ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf/AdGuardHome.yaml
   cp config/samba/smb.conf ${APPDATA_ROOT:-/srv/homelab}/samba/smb.conf
   cp config/qbittorrent/qBittorrent.conf ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf
   cp config/homepage/* ${APPDATA_ROOT:-/srv/homelab}/homepage/config/
-  docker compose restart adguardhome samba qbittorrent homepage
+  cp config/gluetun/auth/config.toml ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth/config.toml
+  docker compose restart adguardhome samba qbittorrent homepage gluetun
