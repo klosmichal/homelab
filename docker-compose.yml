@@ -372,6 +372,7 @@ services:
       - VPN_SERVICE_PROVIDER=nordvpn
       - VPN_TYPE=wireguard
       - WIREGUARD_PRIVATE_KEY=${NORDVPN_PRIVATE_KEY}
+      - WIREGUARD_MTU=1320
       - SERVER_COUNTRIES=Netherlands
       - TZ=${TZ}
     volumes:
