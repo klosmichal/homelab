@@ -263,7 +263,7 @@ services:
       - DB_DATABASE_NAME=${IMMICH_DB_NAME}
       - REDIS_HOSTNAME=immich-redis
     volumes:
-      - ${MEDIA_ROOT}/immich/library:/usr/src/app/upload
+      - ${IMMICH_LIBRARY_ROOT}:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
     networks:
       - proxy

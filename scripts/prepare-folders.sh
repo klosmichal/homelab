@@ -26,15 +26,18 @@ sudo mkdir -p \
 
 sudo chown -R 1000:1000 "$APPDATA_ROOT/seerr"
 
-# Media directories
+# Media directories (MEDIA_ROOT lives on external HDD)
 sudo mkdir -p \
   "$MEDIA_ROOT/video/movies" \
   "$MEDIA_ROOT/video/shows" \
   "$MEDIA_ROOT/downloads/complete" \
-  "$MEDIA_ROOT/downloads/incomplete" \
-  "$MEDIA_ROOT/immich/library"
+  "$MEDIA_ROOT/downloads/incomplete"
 
 sudo chown -R "${PUID}:${PGID}" "$MEDIA_ROOT"
+
+# Immich library stays on the SSD (IMMICH_LIBRARY_ROOT), separate from MEDIA_ROOT
+sudo mkdir -p "$IMMICH_LIBRARY_ROOT"
+sudo chown -R "${PUID}:${PGID}" "$IMMICH_LIBRARY_ROOT"
 
 # Config files — copy only on first run; use just sync-config to re-apply
 if [[ ! -f "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml" ]]; then
