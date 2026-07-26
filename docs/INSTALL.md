@@ -93,15 +93,49 @@ The compose file mounts `env/traefik-users` into the Traefik container.
 
 ---
 
-## 7. Mount the backup disk
+## 7. Mount the disks
+
+This host uses three storage areas:
+
+| Mount | Device | Holds |
+|---|---|---|
+| `/` (NVMe SSD) | internal | OS, `${APPDATA_ROOT}` (`/srv/homelab`), and the Immich library (`${IMMICH_LIBRARY_ROOT}` = `/srv/data/immich/library`) |
+| `/mnt/media` (8 TB USB HDD) | external | `${MEDIA_ROOT}` — Jellyfin library (`video/`) + qBittorrent/*arr downloads (`downloads/`) |
+| `/mnt/backup-usb` (USB HDD) | external | restic backup repository |
+
+Jellyfin's library and the download pipeline live together on `/mnt/media` so Radarr/Sonarr can **hardlink** imports (instant, no double disk usage). Immich stays on the SSD, kept separate via its own `IMMICH_LIBRARY_ROOT` variable so it isn't pulled onto the media HDD.
+
+### 7a. Media disk (8 TB HDD → `/mnt/media`)
 
 ```bash
-lsblk -f    # find your USB disk UUID
+lsblk -o NAME,SIZE,TYPE,TRAN,MODEL    # confirm the device (e.g. /dev/sda) and size
+
+# Partition + format (DESTROYS the disk — verify the device first):
+sudo parted /dev/sda mklabel gpt
+sudo parted -a optimal /dev/sda mkpart primary ext4 0% 100%
+sudo mkfs.ext4 -L media -m 0 /dev/sda1     # -m 0: no reserved space on a media disk
+
+sudo mkdir -p /mnt/media
+sudo blkid /dev/sda1                        # copy the UUID
+
+# add to /etc/fstab (use the UUID above):
+echo 'UUID=YOUR-MEDIA-UUID /mnt/media ext4 defaults,nofail 0 2' | sudo tee -a /etc/fstab
+
+sudo mount -a
+df -h /mnt/media                            # confirm mounted at full size
+```
+
+`nofail` lets the host boot if the disk is disconnected. Trade-off: if the disk is missing at boot, `/mnt/media` is an empty folder on the SSD and containers see an empty library — after any reboot, confirm `df -h /mnt/media` before trusting it.
+
+### 7b. Backup disk (`/mnt/backup-usb`)
+
+```bash
+lsblk -f    # find your backup USB disk UUID
 
 sudo mkdir -p /mnt/backup-usb
 
 # add to /etc/fstab:
-echo 'UUID=YOUR-UUID /mnt/backup-usb ext4 defaults,nofail 0 2' | sudo tee -a /etc/fstab
+echo 'UUID=YOUR-BACKUP-UUID /mnt/backup-usb ext4 defaults,nofail 0 2' | sudo tee -a /etc/fstab
 
 sudo mount -a
 ```
@@ -120,7 +154,7 @@ sudo bash scripts/install-host.sh
 
 ## 9. Prepare data directories and configs
 
-Creates all required directories under `/srv/homelab` and `/srv/data` (including arr stack directories), and seeds initial configs for AdGuard Home, Samba, and qBittorrent. Idempotent — safe to re-run after adding new services:
+Creates all required directories — app data under `/srv/homelab`, the media library + downloads under `${MEDIA_ROOT}` (`/mnt/media`), and the Immich library under `${IMMICH_LIBRARY_ROOT}` (`/srv/data/immich/library`) — and seeds initial configs for AdGuard Home, Samba, and qBittorrent. Idempotent — safe to re-run after adding new services:
 
 ```bash
 bash scripts/prepare-folders.sh
@@ -320,7 +354,28 @@ This runs every Sunday at 03:00. The script dumps the Immich PostgreSQL database
 
 ---
 
-## 16. Ongoing updates
+## 16. Verify services after a restart
+
+Run this after any reboot, `just up`, `just update`, or power loss:
+
+```bash
+just verify
+```
+
+`scripts/verify.sh` checks, in order of blast radius:
+
+1. **External disks mounted** — because the disks use `nofail`, the host boots even if a disk didn't come up, and containers would then write to an **empty folder on the SSD**. This is the first thing to confirm: `/mnt/media` and `/mnt/backup-usb` must be real mountpoints, and the media layout (`video/`, `downloads/`) must be present. A `FAIL` here means **do not start the stack** — fix the mount first (`sudo mount -a`; check the cable/enclosure and `sudo dmesg | grep sda`).
+2. **Containers up & healthy** — every expected container is `running`; those with healthchecks report `healthy` (`starting` is a transient warning right after boot).
+3. **VPN egress** — Gluetun is up and returns a public IP; qBittorrent has no network if Gluetun is down. Confirm the printed IP is the VPN's, not your home IP.
+4. **Public routes** — each key `*.michalklos.com` host answers through Traefik with a valid cert. `200/301/302/401/403` are all fine; `000` is a DNS/Traefik/cert problem; `502/503/504` means the backing container is down.
+
+The script exits non-zero if any hard check fails. Investigate failures with `just logs <service>`. For a quick container-only presence check, `just check` still runs the lightweight smoke test.
+
+After a clean run, eyeball the essentials in a browser: Jellyfin plays a title (confirms `/mnt/media` is readable + hardware transcode), Immich loads photos (confirms the SSD library), and the Homepage dashboard shows green widgets.
+
+---
+
+## 17. Ongoing updates
 
 ```bash
 cd ~/homelab

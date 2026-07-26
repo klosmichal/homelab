@@ -36,29 +36,10 @@ backup:
 check:
   bash ./scripts/healthcheck-smoke.sh
 
-# --- Temporary surprise-app at wwa.michalklos.com (remove after use) ---
+# Full post-restart verification: disks mounted, containers healthy, VPN up, routes answering
+verify:
+  bash ./scripts/verify.sh
 
-# Clone (or update) the app source onto the host
-wwa-clone:
-  git clone https://github.com/klosmichal/surprise-app.git ${APPDATA_ROOT:-/srv/homelab}/wwa/app \
-    || git -C ${APPDATA_ROOT:-/srv/homelab}/wwa/app pull
-
-# Build the image and start the temporary wwa stack
-wwa-up:
-  docker compose -f docker-compose.wwa.yml up -d --build
-
-# Follow logs for the wwa stack
-wwa-logs:
-  docker compose -f docker-compose.wwa.yml logs -f --tail=200
-
-# Tear down the wwa stack (leaves the cloned source on disk)
-wwa-down:
-  docker compose -f docker-compose.wwa.yml down
-
-# Full cleanup: stop, remove the built image + data volume, and delete the clone
-wwa-purge:
-  docker compose -f docker-compose.wwa.yml down --rmi local -v
-  rm -rf ${APPDATA_ROOT:-/srv/homelab}/wwa
 
 # Copy runtime configs back into the repo (reverse of sync-config)
 pull-config:
