@@ -22,7 +22,7 @@ update *service:
 
 # Show current container status
 ps:
-  docker compose ps
+  docker compose ps --format "table {{{{.Name}}}}\t{{{{.Service}}}}\t{{{{.Status}}}}"
 
 # Follow logs for all services, or a specific one: just logs radarr
 logs *service:
