@@ -51,7 +51,7 @@ fi
 echo "2. Containers"
 containers=(
   traefik adguardhome tailscale
-  homepage dozzle
+  homepage
   jellyfin homeassistant
   filebrowser samba
   immich_server immich_machine_learning immich_redis immich_postgres

@@ -46,7 +46,7 @@ Your device
 | Traefik | `traefik.michalklos.com` | Reverse proxy dashboard |
 | Samba | LAN port 445 | File shares |
 
-Optional profiles: `dozzle` (log viewer), `cloudflared` (Vaultwarden public tunnel).
+Optional profiles: `cloudflared` (Vaultwarden public tunnel).
 
 ## Quick start
 
@@ -64,7 +64,6 @@ Full step-by-step instructions: [`docs/INSTALL.md`](docs/INSTALL.md)
 
 ```bash
 just up                # start core stack
-just up-dozzle         # + Dozzle log viewer
 just up-cloudflared    # + Cloudflare Tunnel (Vaultwarden public)
 just stop              # stop everything
 just update            # pull new images and restart

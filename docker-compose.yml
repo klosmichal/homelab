@@ -8,7 +8,6 @@ networks:
 
 volumes:
   letsencrypt:
-  dozzle_data:
   jellyfin_config:
   immich_pgdata:
   immich_model_cache:
@@ -106,28 +105,6 @@ services:
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
       - TS_ROUTES=192.168.10.0/24
-
-  dozzle:
-    image: amir20/dozzle:v8.14.7
-    container_name: dozzle
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "/dozzle", "healthcheck"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - dozzle_data:/data
-    networks:
-      - proxy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST}`)
-      - traefik.http.routers.dozzle.entrypoints=websecure
-      - traefik.http.routers.dozzle.tls.certresolver=letsencrypt
-      - traefik.http.services.dozzle.loadbalancer.server.port=8080
 
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
