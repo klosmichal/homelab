@@ -145,6 +145,8 @@ services:
     restart: unless-stopped
     devices:
       - /dev/dri:/dev/dri
+    group_add:
+      - "993"
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
