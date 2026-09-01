@@ -152,6 +152,10 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_SERVER_URL}
+      # Intel OpenCL runtime: Jellyfin initialises an OpenCL device whenever HDR
+      # tone mapping is enabled. Without it every transcode of an HDR file dies
+      # instantly with "Failed to get number of OpenCL platforms".
+      - DOCKER_MODS=linuxserver/mods:jellyfin-opencl-intel
     volumes:
       - jellyfin_config:/config
       - ${MEDIA_ROOT}/video:/data/video
