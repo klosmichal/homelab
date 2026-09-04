@@ -22,7 +22,8 @@ sudo mkdir -p \
   "$APPDATA_ROOT/radarr/config" \
   "$APPDATA_ROOT/sonarr/config" \
   "$APPDATA_ROOT/bazarr/config" \
-  "$APPDATA_ROOT/seerr/config"
+  "$APPDATA_ROOT/seerr/config" \
+  "$APPDATA_ROOT/recyclarr/config"
 
 sudo chown -R 1000:1000 "$APPDATA_ROOT/seerr"
 

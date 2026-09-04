@@ -33,7 +33,7 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 
 ### Single-file stack
 
-`docker-compose.yml` defines all ~18 services. Two networks:
+`docker-compose.yml` defines all ~17 services. Two networks:
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
 - `internal` — databases and caches only (never touch Traefik)
 
@@ -75,3 +75,4 @@ Key env variable groups:
 ## Key docs
 
 - `docs/INSTALL.md` — full step-by-step deployment
+- `docs/JELLYFIN-TV.md` — LG G4 playback settings and measured codec compatibility

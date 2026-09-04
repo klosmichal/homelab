@@ -516,3 +516,21 @@ services:
       - traefik.http.routers.seerr.entrypoints=websecure
       - traefik.http.routers.seerr.tls.certresolver=letsencrypt
       - traefik.http.services.seerr.loadbalancer.server.port=5055
+
+  # No web UI: runs on a cron schedule and writes quality profiles into
+  # Radarr/Sonarr over the proxy network, then exits until the next run.
+  # Pinned to major 7 — upstream publishes no :latest tag on purpose.
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:7
+    container_name: recyclarr
+    restart: unless-stopped
+    user: ${PUID}:${PGID}
+    environment:
+      - TZ=${TZ}
+      - CRON_SCHEDULE=0 4 * * *
+      - RADARR_API_KEY=${RADARR_API_KEY}
+      - SONARR_API_KEY=${SONARR_API_KEY}
+    volumes:
+      - ${APPDATA_ROOT}/recyclarr/config:/config
+    networks:
+      - proxy
