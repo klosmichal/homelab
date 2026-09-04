@@ -1,0 +1,89 @@
+# Recyclarr — syncs TRaSH-guide custom formats into Radarr and Sonarr.
+#
+# The scores below encode the *measured* playback compatibility of the LG G4
+# via the Jellyfin webOS app. See docs/JELLYFIN-TV.md for how each was tested.
+#
+#   Direct-plays : HEVC, H.264 · TrueHD, E-AC3, AC3, AAC · SRT · MKV and MP4
+#   Re-encodes   : DTS (any flavour) · Dolby Vision P7 · PGS subtitles
+#
+# Negative scores are *preferences*, not filters: a release scored -1000 is
+# still grabbed if nothing better exists. Hard size limits live in Radarr's
+# Quality Definitions, which quality_definition below manages from the guide.
+
+radarr:
+  main:
+    base_url: http://radarr:7878
+    api_key: !env_var RADARR_API_KEY
+    quality_definition:
+      type: movie
+    custom_formats:
+      # Audio the TV plays untouched. Guide default scores apply.
+      - trash_ids:
+          - 496f355514737f7d83bf7aa4d24f8169 # TrueHD ATMOS
+          - 3cafb66171b47f226146a0770576870f # TrueHD
+          - 1af239278386be2919e1bcee0bde047e # DD+ ATMOS
+          - 185f1dd7264c4562b9022d963ac37424 # DD+
+          - c2998bd0d90ed5621d8df281e839436e # DD
+          - 240770601cc226190c367ef59aba7463 # AAC
+        assign_scores_to:
+          - name: HD+
+
+      # DTS is never direct-played on this TV — six tracks tested, all re-encoded.
+      - trash_ids:
+          - 1c1a4c5e823891c75bc50380a6866f73 # DTS
+          - f9f847ac70a0af62ea4a08280b859636 # DTS-ES
+          - 8e109e50e0a0b83a5098b056e13bf6db # DTS-HD HRA
+          - dcf3ec6938fa32445f590a4da84256cd # DTS-HD MA
+          - 2f22d89048b01681dde8afe203bf2e95 # DTS X
+        assign_scores_to:
+          - name: HD+
+            score: -500
+
+      # Dolby Vision variants the TV cannot render: P7 dual-layer (disc rips)
+      # and P5 (no HDR10 base layer). Both force a full video re-encode.
+      - trash_ids:
+          - f700d29429c023a5734505e77daeaea7 # DV (Disk)
+          - 923b6abef9b17f937fab56cfcf89e1f1 # DV (w/o HDR fallback)
+        assign_scores_to:
+          - name: HD+
+            score: -1000
+
+      # Legacy codecs that transcode on every client.
+      - trash_ids:
+          - 11cd1db7165d6a7ad9a83bc97b8b1060 # VC-1
+          - ff86c4326018682f817830ced463332b # MPEG2
+        assign_scores_to:
+          - name: HD+
+            score: -1000
+
+sonarr:
+  main:
+    base_url: http://sonarr:8989
+    api_key: !env_var SONARR_API_KEY
+    quality_definition:
+      type: series
+    custom_formats:
+      - trash_ids:
+          - 0d7824bb924701997f874e7ff7d4844a # TrueHD ATMOS
+          - 1808e4b9cee74e064dfae3f1db99dbfe # TrueHD
+          - 4232a509ce60c4e208d13825b7c06264 # DD+ ATMOS
+          - 63487786a8b01b7f20dd2bc90dd4a477 # DD+
+          - dbe00161b08a25ac6154c55f95e6318d # DD
+          - a50b8a0c62274a7c38b09a9619ba9d86 # AAC
+        assign_scores_to:
+          - name: HD+
+
+      - trash_ids:
+          - 5964f2a8b3be407d083498e4459d05d0 # DTS
+          - c1a25cd67b5d2e08287c957b1eb903ec # DTS-ES
+          - 9d00418ba386a083fbf4d58235fc37ef # DTS X
+        assign_scores_to:
+          - name: HD+
+            score: -500
+
+      - trash_ids:
+          - 7470a681e6205243983c4410ee4c920f # VC-1
+          - 4aee45b0868229c4fbd8bad3e315f1d0 # MPEG2
+        assign_scores_to:
+          - name: HD+
+            score: -1000

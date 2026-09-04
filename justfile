@@ -60,4 +60,5 @@ sync-config:
   cp config/qbittorrent/qBittorrent.conf ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf
   cp config/homepage/* ${APPDATA_ROOT:-/srv/homelab}/homepage/config/
   cp config/gluetun/auth/config.toml ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth/config.toml
-  docker compose restart adguardhome samba qbittorrent homepage gluetun
+  cp config/recyclarr/recyclarr.yml ${APPDATA_ROOT:-/srv/homelab}/recyclarr/config/recyclarr.yml
+  docker compose restart adguardhome samba qbittorrent homepage gluetun recyclarr
