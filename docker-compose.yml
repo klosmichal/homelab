@@ -563,8 +563,9 @@ services:
 
   # No web UI: runs on a cron schedule and writes quality profiles into
   # Radarr/Sonarr over the proxy network, then exits until the next run.
+  # Pinned to major 7 — upstream publishes no :latest tag on purpose.
   recyclarr:
-    image: ghcr.io/recyclarr/recyclarr:latest
+    image: ghcr.io/recyclarr/recyclarr:7
     container_name: recyclarr
     restart: unless-stopped
     user: ${PUID}:${PGID}
