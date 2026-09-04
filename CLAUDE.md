@@ -75,3 +75,4 @@ Key env variable groups:
 ## Key docs
 
 - `docs/INSTALL.md` — full step-by-step deployment
+- `docs/JELLYFIN-TV.md` — LG G4 playback settings and measured codec compatibility

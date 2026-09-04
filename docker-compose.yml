@@ -516,3 +516,64 @@ services:
       - traefik.http.routers.seerr.entrypoints=websecure
       - traefik.http.routers.seerr.tls.certresolver=letsencrypt
       - traefik.http.services.seerr.loadbalancer.server.port=5055
+
+  tdarr:
+    image: ghcr.io/haveagitgat/tdarr:latest
+    container_name: tdarr
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "993"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8265 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK_SET=002
+      - serverIP=0.0.0.0
+      - serverPort=8266
+      - webUIPort=8265
+      - internalNode=true
+      - inContainer=true
+      - ffmpegVersion=7
+      - nodeName=cubi
+    volumes:
+      - ${APPDATA_ROOT}/tdarr/server:/app/server
+      - ${APPDATA_ROOT}/tdarr/configs:/app/configs
+      - ${APPDATA_ROOT}/tdarr/logs:/app/logs
+      # Scratch space for in-flight work. On the SSD, not the media HDD.
+      - ${APPDATA_ROOT}/tdarr/transcode_cache:/temp
+      # Same /data/video mapping Jellyfin uses, so paths line up across services.
+      - ${MEDIA_ROOT}/video:/data/video
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tdarr.rule=Host(`${TDARR_HOST}`)
+      - traefik.http.routers.tdarr.entrypoints=websecure
+      - traefik.http.routers.tdarr.tls.certresolver=letsencrypt
+      - traefik.http.routers.tdarr.middlewares=traefik-auth
+      - traefik.http.services.tdarr.loadbalancer.server.port=8265
+
+  # No web UI: runs on a cron schedule and writes quality profiles into
+  # Radarr/Sonarr over the proxy network, then exits until the next run.
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:latest
+    container_name: recyclarr
+    restart: unless-stopped
+    user: ${PUID}:${PGID}
+    environment:
+      - TZ=${TZ}
+      - RECYCLARR_CRON_SCHEDULE=0 4 * * *
+      - RADARR_API_KEY=${RADARR_API_KEY}
+      - SONARR_API_KEY=${SONARR_API_KEY}
+    volumes:
+      - ${APPDATA_ROOT}/recyclarr/config:/config
+    networks:
+      - proxy
