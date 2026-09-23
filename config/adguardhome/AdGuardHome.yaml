@@ -36,8 +36,15 @@ dns:
   bootstrap_dns:
     - 1.1.1.1
     - 1.0.0.1
-  fallback_dns: []
-  upstream_mode: load_balance
+  # Quad9, used only when both Cloudflare upstreams fail. Without a fallback a
+  # stalled upstream makes clients give up on AdGuard and query the DHCP
+  # secondary, which has no answer for *.michalklos.com and caches the NXDOMAIN.
+  fallback_dns:
+    - 9.9.9.9
+    - 149.112.112.112
+  # Query both upstreams at once and take the first reply, so one stalled
+  # Cloudflare server no longer costs a full timeout.
+  upstream_mode: parallel
   fastest_timeout: 1s
   allowed_clients: []
   disallowed_clients: []
