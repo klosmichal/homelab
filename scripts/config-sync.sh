@@ -73,7 +73,7 @@ applies() {
 # differs. Returns 0 if every file matches, 1 if any differ or are missing.
 run_diff() {
   local clean=0
-  local entry repo live direction repo_path live_path
+  local entry repo live direction repo_path live_path prefix
   for entry in "${FILES[@]}"; do
     IFS='|' read -r repo live direction <<<"$entry"
     applies "$direction" || continue
@@ -91,8 +91,17 @@ run_diff() {
       continue
     fi
 
+    # A failed sudo exits 1, exactly like "files differ", so confirm the file is
+    # readable first — otherwise an unreadable file is reported as a difference.
+    prefix="$(read_as "$live_path")"
+    if [ -n "$prefix" ] && ! $prefix test -r "$live_path" 2>/dev/null; then
+      printf '  UNREADABLE         %s  (needs sudo)\n' "$live"
+      clean=1
+      continue
+    fi
+
     # diff: 0 identical, 1 differ, anything else means it could not be read.
-    $(read_as "$live_path") diff -q "$live_path" "$repo_path" >/dev/null 2>&1
+    $prefix diff -q "$live_path" "$repo_path" >/dev/null 2>&1
     case $? in
       0)
         printf '  same               %s\n' "$repo"
@@ -109,7 +118,7 @@ run_diff() {
     clean=1
     printf '  DIFFERS            %s%s\n' "$repo" \
       "$([ "$direction" = "pull" ] && echo '  (pull-only)')"
-    $(read_as "$live_path") diff -u --label "live: $live_path" --label "repo: $repo_path" \
+    $prefix diff -u --label "live: $live_path" --label "repo: $repo_path" \
       "$live_path" "$repo_path" 2>/dev/null | sed 's/^/      /'
   done
   return $clean
@@ -132,7 +141,10 @@ copy() {
 
     $(write_as "$(dirname "$dst")") mkdir -p "$(dirname "$dst")"
     # cp onto an existing file keeps that file's owner and mode.
-    $(write_as "$dst") cp "$src" "$dst" || return 1
+    $(write_as "$dst") cp "$src" "$dst" || {
+      printf '  FAILED to write  %s  (needs sudo?)\n' "$dst"
+      return 1
+    }
     printf '  copied  %s -> %s\n' "$src" "$dst"
     copied=1
   done

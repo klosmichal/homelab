@@ -42,8 +42,9 @@ verify:
 
 
 # Show what differs between repo configs and the live runtime copies
+# (the script exits 1 when anything differs; swallow it so just stays quiet)
 diff-config:
-  bash ./scripts/config-sync.sh diff
+  @bash ./scripts/config-sync.sh diff || true
 
 # Copy runtime configs back into the repo (reverse of sync-config)
 pull-config:
