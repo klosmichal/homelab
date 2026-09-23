@@ -33,7 +33,7 @@ cp env.production.example .env
 
 ## 4. Set up Cloudflare
 
-You need a domain on Cloudflare for HTTPS certificates (DNS-01 challenge) and the optional public Vaultwarden tunnel.
+You need a domain on Cloudflare for HTTPS certificates (DNS-01 challenge).
 
 ### 4a. Point your domain to Cloudflare nameservers
 
@@ -64,7 +64,6 @@ Open `~/homelab/.env` and fill in all values:
 | `CF_DNS_API_TOKEN` | Cloudflare API token from step 4b |
 | `ACME_EMAIL` | Your email for Let's Encrypt notifications |
 | `IMMICH_DB_PASSWORD` | Strong random password |
-| `VAULTWARDEN_ADMIN_TOKEN` | Strong random token (`openssl rand -base64 48`) |
 | `RESTIC_PASSWORD` | Strong random passphrase for backup encryption |
 | `SAMBA_PASSWORD` | Samba share password |
 | `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |

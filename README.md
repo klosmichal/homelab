@@ -15,7 +15,6 @@ Your device
     │    ├── home.michalklos.com      (Homepage)               │
     │    ├── jellyfin.michalklos.com  (Jellyfin)               │
     │    ├── immich.michalklos.com    (Immich)                 │
-    │    ├── vault.michalklos.com     (Vaultwarden)            │
     │    ├── ha.michalklos.com        (Home Assistant)         │
     │    ├── kuma.michalklos.com      (Uptime Kuma)            │
     │    ├── dns.michalklos.com       (AdGuard Home)           │
@@ -25,9 +24,7 @@ Your device
     │                                                          │
     └──────────────────────────────────────────────────────────┘
     │
-    ├─── Tailscale VPN  (remote access to all services)
-    │
-    └─── Cloudflare Tunnel  (vault.michalklos.com — public, no VPN needed)
+    └─── Tailscale VPN  (remote access to all services)
 ```
 
 ## Services
@@ -37,7 +34,6 @@ Your device
 | Homepage | `home.michalklos.com` | Dashboard |
 | Jellyfin | `jellyfin.michalklos.com` | Media streaming (Intel QSV) |
 | Immich | `immich.michalklos.com` | Photo management (OpenVINO) |
-| Vaultwarden | `vault.michalklos.com` | Password manager — also public via Cloudflare Tunnel |
 | Home Assistant | `ha.michalklos.com` | Home automation |
 | AdGuard Home | `dns.michalklos.com` | DNS + ad blocking |
 | Uptime Kuma | `kuma.michalklos.com` | Monitoring |
@@ -45,8 +41,6 @@ Your device
 | FileBrowser | `files.michalklos.com` | Web file manager |
 | Traefik | `traefik.michalklos.com` | Reverse proxy dashboard |
 | Samba | LAN port 445 | File shares |
-
-Optional profiles: `cloudflared` (Vaultwarden public tunnel).
 
 ## Quick start
 
@@ -64,7 +58,6 @@ Full step-by-step instructions: [`docs/INSTALL.md`](docs/INSTALL.md)
 
 ```bash
 just up                # start core stack
-just up-cloudflared    # + Cloudflare Tunnel (Vaultwarden public)
 just stop              # stop everything
 just update            # pull new images and restart
 just ps                # container status
@@ -78,6 +71,6 @@ just check             # smoke test all containers
 - **OS:** Ubuntu Server 24.04 LTS
 - **Proxy:** Traefik v3.6 — HTTPS via Let's Encrypt DNS-01 (Cloudflare)
 - **DNS:** AdGuard Home — local rewrite `*.michalklos.com → 192.168.10.10`
-- **Remote access:** Tailscale (VPN) + Cloudflare Tunnel (Vaultwarden only)
+- **Remote access:** Tailscale (VPN)
 - **Hardware acceleration:** Intel Quick Sync / VA-API + OpenVINO via `/dev/dri`
 - **Backups:** restic → USB disk, weekly cron

@@ -47,7 +47,7 @@ AdGuard Home provides:
 - DNS rewrite: `*.michalklos.com` → `192.168.10.10`
 - Ad/tracker blocking via AdGuard DNS filter, OISD Big, and HaGeZi Multi PRO lists
 
-Remote access is Tailscale by default (mesh VPN, no port forwarding). Cloudflare Tunnel is optional for Vaultwarden only — profile `cloudflared` in `docker-compose.yml`.
+Remote access is Tailscale only (mesh VPN, no port forwarding).
 
 Home Assistant and Tailscale use host networking; all other services use the bridge networks above.
 
