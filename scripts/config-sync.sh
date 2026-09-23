@@ -16,13 +16,26 @@ MODE="${1:-diff}"
 ROOT="${APPDATA_ROOT:-/srv/homelab}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# The runtime copy of AdGuardHome.yaml is root-owned 0600, so reading or
-# writing it needs root. cp onto an existing file keeps that file's owner and
-# mode, so this never changes ownership of the others. Export SUDO="" to skip
-# it entirely (already root, or a tree you own).
+# Only the runtime copy of AdGuardHome.yaml is root-owned 0600; everything else
+# belongs to the login user. So sudo is applied per file, only where the plain
+# operation would fail — otherwise a full run would prompt for a password it
+# does not need. Export SUDO="" to forbid escalation entirely.
 if [ -z "${SUDO+x}" ]; then
   if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 fi
+
+# Prefix for reading a path: empty when it is already readable.
+read_as() { [ -r "$1" ] || printf '%s' "$SUDO"; }
+
+# Prefix for writing a path: empty when the file (or its parent, if the file
+# does not exist yet) is already writable.
+write_as() {
+  if [ -e "$1" ]; then
+    [ -w "$1" ] || printf '%s' "$SUDO"
+  else
+    [ -w "$(dirname "$1")" ] || printf '%s' "$SUDO"
+  fi
+}
 
 # repo path | runtime path (relative to ROOT) | direction
 #   both — the repo is the source of truth; push writes it, pull snapshots it
@@ -72,24 +85,31 @@ run_diff() {
       clean=1
       continue
     fi
-    if ! $SUDO test -f "$live_path"; then
-      if [ -e "$live_path" ]; then
-        printf '  UNREADABLE         %s  (needs sudo)\n' "$live"
-      else
-        printf '  missing on server  %s\n' "$live"
-      fi
+    if [ ! -e "$live_path" ]; then
+      printf '  missing on server  %s\n' "$live"
       clean=1
       continue
     fi
-    if $SUDO diff -q "$live_path" "$repo_path" >/dev/null 2>&1; then
-      printf '  same               %s\n' "$repo"
-      continue
-    fi
+
+    # diff: 0 identical, 1 differ, anything else means it could not be read.
+    $(read_as "$live_path") diff -q "$live_path" "$repo_path" >/dev/null 2>&1
+    case $? in
+      0)
+        printf '  same               %s\n' "$repo"
+        continue
+        ;;
+      1) ;;
+      *)
+        printf '  UNREADABLE         %s  (needs sudo)\n' "$live"
+        clean=1
+        continue
+        ;;
+    esac
 
     clean=1
     printf '  DIFFERS            %s%s\n' "$repo" \
       "$([ "$direction" = "pull" ] && echo '  (pull-only)')"
-    $SUDO diff -u --label "live: $live_path" --label "repo: $repo_path" \
+    $(read_as "$live_path") diff -u --label "live: $live_path" --label "repo: $repo_path" \
       "$live_path" "$repo_path" 2>/dev/null | sed 's/^/      /'
   done
   return $clean
@@ -107,11 +127,12 @@ copy() {
       src="$ROOT/$live"; dst="$REPO/$repo"
     fi
 
-    $SUDO test -f "$src" || { printf 'skipped (no source)  %s\n' "$src"; continue; }
-    if $SUDO diff -q "$src" "$dst" >/dev/null 2>&1; then continue; fi
+    [ -e "$src" ] || { printf '  skipped (no source)  %s\n' "$src"; continue; }
+    $(read_as "$src") diff -q "$src" "$dst" >/dev/null 2>&1 && continue
 
-    $SUDO mkdir -p "$(dirname "$dst")"
-    $SUDO cp "$src" "$dst" || return 1
+    $(write_as "$(dirname "$dst")") mkdir -p "$(dirname "$dst")"
+    # cp onto an existing file keeps that file's owner and mode.
+    $(write_as "$dst") cp "$src" "$dst" || return 1
     printf '  copied  %s -> %s\n' "$src" "$dst"
     copied=1
   done
