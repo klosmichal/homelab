@@ -41,8 +41,8 @@ verify:
   bash ./scripts/verify.sh
 
 
+# The script exits 1 when anything differs; swallowed so just stays quiet.
 # Show what differs between repo configs and the live runtime copies
-# (the script exits 1 when anything differs; swallow it so just stays quiet)
 diff-config:
   @bash ./scripts/config-sync.sh diff || true
 
