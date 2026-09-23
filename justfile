@@ -41,27 +41,20 @@ verify:
   bash ./scripts/verify.sh
 
 
+# Show what differs between repo configs and the live runtime copies
+diff-config:
+  bash ./scripts/config-sync.sh diff
+
 # Copy runtime configs back into the repo (reverse of sync-config)
 pull-config:
-  cp ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf/AdGuardHome.yaml config/adguardhome/AdGuardHome.yaml
-  cp ${APPDATA_ROOT:-/srv/homelab}/samba/smb.conf config/samba/smb.conf
-  cp ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf config/qbittorrent/qBittorrent.conf
-  cp ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth/config.toml config/gluetun/auth/config.toml
+  bash ./scripts/config-sync.sh pull
 
 # Copy all configs from repo to runtime locations and restart affected containers
 sync-config:
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/samba
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/homepage/config
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth
-  mkdir -p ${APPDATA_ROOT:-/srv/homelab}/homeassistant/config
-  cp config/adguardhome/AdGuardHome.yaml ${APPDATA_ROOT:-/srv/homelab}/adguardhome/conf/AdGuardHome.yaml
-  cp config/samba/smb.conf ${APPDATA_ROOT:-/srv/homelab}/samba/smb.conf
-  cp config/qbittorrent/qBittorrent.conf ${APPDATA_ROOT:-/srv/homelab}/qbittorrent/config/qBittorrent/qBittorrent.conf
-  cp config/homepage/* ${APPDATA_ROOT:-/srv/homelab}/homepage/config/
-  cp config/gluetun/auth/config.toml ${APPDATA_ROOT:-/srv/homelab}/gluetun/auth/config.toml
-  cp config/recyclarr/recyclarr.yml ${APPDATA_ROOT:-/srv/homelab}/recyclarr/config/recyclarr.yml
-  # only configuration.yaml - automations/scenes/scripts are managed in the HA UI
-  cp config/homeassistant/configuration.yaml ${APPDATA_ROOT:-/srv/homelab}/homeassistant/config/configuration.yaml
+  #!/usr/bin/env bash
+  set -uo pipefail
+  bash ./scripts/config-sync.sh push
+  rc=$?
+  if [ $rc -eq 2 ]; then echo "Containers not restarted."; exit 0; fi
+  [ $rc -eq 0 ] || exit $rc
   docker compose restart adguardhome samba qbittorrent homepage gluetun recyclarr homeassistant
