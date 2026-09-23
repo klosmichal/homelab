@@ -33,7 +33,7 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 
 ### Single-file stack
 
-`docker-compose.yml` defines all ~17 services. Two networks:
+`docker-compose.yml` defines all 22 services. Two networks:
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
 - `internal` — databases and caches only (never touch Traefik)
 
@@ -46,10 +46,13 @@ All services resolve via DNS names (`*.michalklos.com`), never by IP. Traefik ha
 AdGuard Home provides:
 - DNS rewrite: `*.michalklos.com` → `192.168.10.10`
 - Ad/tracker blocking via AdGuard DNS filter, OISD Big, and HaGeZi Multi PRO lists
+- Upstreams: Cloudflare `1.1.1.1`/`1.0.0.1` queried in `parallel` mode, with Quad9 as `fallback_dns`
+
+Note that AdGuard rewrites `AdGuardHome.yaml` itself whenever settings change in its web UI, so the runtime file can drift ahead of the repo copy. Diff before running `sync-config`, or UI changes are lost.
 
 Remote access is Tailscale only (mesh VPN, no port forwarding).
 
-Home Assistant and Tailscale use host networking; all other services use the bridge networks above.
+Home Assistant and Tailscale use host networking. qBittorrent has no network of its own — it runs inside Gluetun's namespace (`network_mode: service:gluetun`), so its traffic leaves through the NordVPN WireGuard tunnel and its Traefik labels live on the `gluetun` service. Every other service uses the bridge networks above.
 
 ### Configuration
 
