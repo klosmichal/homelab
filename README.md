@@ -87,10 +87,23 @@ just logs              # follow all logs
 just backup            # run restic backup now
 just check             # smoke test all containers
 just verify            # full post-restart verification
-just sync-config       # copy configs from repo to runtime, restart affected
+just diff-config       # show what differs between repo and runtime configs
+just sync-config       # repo -> runtime, then restart affected containers
+just pull-config       # runtime -> repo (snapshot what the apps wrote)
 ```
 
-`sync-config` needs `sudo` — the runtime config files are root-owned.
+`sync-config` and `pull-config` overwrite in opposite directions, so both run
+`diff-config` first and ask for confirmation before copying anything. Set
+`CONFIRM=yes` to skip the prompt in scripts.
+
+Some apps rewrite their own config at runtime — AdGuard Home on every web UI
+change, qBittorrent and Home Assistant likewise — so the runtime copy drifts
+ahead of the repo. Always read the diff before answering the prompt; `pull-config`
+is how you capture those changes back. Home Assistant's `automations.yaml`,
+`scenes.yaml` and `scripts.yaml` are pull-only and never overwritten.
+
+Run both with `sudo`, or answer the password prompt: the runtime
+`AdGuardHome.yaml` is root-owned.
 
 ## Stack
 
