@@ -18,8 +18,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # The runtime copy of AdGuardHome.yaml is root-owned 0600, so reading or
 # writing it needs root. cp onto an existing file keeps that file's owner and
-# mode, so this never changes ownership of the others.
-if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+# mode, so this never changes ownership of the others. Export SUDO="" to skip
+# it entirely (already root, or a tree you own).
+if [ -z "${SUDO+x}" ]; then
+  if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+fi
 
 # repo path | runtime path (relative to ROOT) | direction
 #   both — the repo is the source of truth; push writes it, pull snapshots it
@@ -70,7 +73,11 @@ run_diff() {
       continue
     fi
     if ! $SUDO test -f "$live_path"; then
-      printf '  missing on server  %s\n' "$live"
+      if [ -e "$live_path" ]; then
+        printf '  UNREADABLE         %s  (needs sudo)\n' "$live"
+      else
+        printf '  missing on server  %s\n' "$live"
+      fi
       clean=1
       continue
     fi

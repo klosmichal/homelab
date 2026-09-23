@@ -79,3 +79,20 @@ Key env variable groups:
 
 - `docs/INSTALL.md` — full step-by-step deployment
 - `docs/JELLYFIN-TV.md` — LG G4 playback settings and measured codec compatibility
+
+## Keeping docs in sync with the stack
+
+Any architecture change must be reflected in the Markdown docs **in the same commit** — not left for later. This includes adding or removing a service, renaming a host, changing networks or ports, moving a config file, changing how remote access or DNS works, and adding or removing a `just` recipe.
+
+Update whichever of these the change touches:
+- `README.md` — the architecture diagram, the service tables (both the routed one and the no-web-UI one), the daily operations list, and the Stack summary
+- `CLAUDE.md` — the service count, the networking model, the configuration section
+- `docs/INSTALL.md` — setup steps and the `.env` variable table
+
+Verify against reality rather than trusting the existing text, which has drifted before:
+```bash
+docker compose ps --format "{{.Service}}\t{{.Status}}"   # what actually runs
+grep -nE "^  [a-z0-9_-]+:" docker-compose.yml            # what is defined
+grep -nE "_HOST=" env.production.example                 # hostnames
+```
+Docs describing services that do not exist are worse than no docs: this repo once documented Vaultwarden behind a Cloudflare Tunnel and an Uptime Kuma instance, neither of which was ever in `docker-compose.yml`.
