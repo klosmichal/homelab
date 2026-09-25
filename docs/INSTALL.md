@@ -196,6 +196,24 @@ just ps
 
 2. Verify the rewrite is active: AdGuard Home → Filters → DNS rewrites — you should see `*.michalklos.com → 192.168.10.10`.
 
+3. Verify the blocklists loaded: AdGuard Home → Filters → DNS blocklists should list a rule count for every entry, including **LG TV — always blocked** and **LG TV — lockdown**. Those two are local files: `prepare-folders.sh` seeds them from `config/adguardhome/userfilters/` into `${APPDATA_ROOT}/adguardhome/work/data/userfilters/`, and `just sync-config` keeps them in sync afterwards.
+
+### 11a. LG TV
+
+The LG TV lists scope every rule to `192.168.10.12`, so the TV must keep that address:
+
+1. In the router (TP-Link Archer BE230): Advanced → Network → DHCP Server → Address Reservation → reserve `192.168.10.12` for the TV's MAC address.
+2. On the TV, turn off what DNS blocking cannot stop:
+   - Live Plus
+   - Under User Agreements: Viewing Information, Voice Information and Interest-Based Ads
+   - Home promotions and recommendations, and the voice wake-word
+   - Always Ready and network standby ("TV On with Wi-Fi/Mobile")
+   - Turn **on** Limit Ad Tracking
+
+Known gaps, accepted because the BE230 cannot filter outbound traffic per device: the TV still gets `1.1.1.1` as fallback DNS from DHCP, and connections to hardcoded IPs (LG's firmware fallback `156.147.69.32`, DNS sent straight to `8.8.8.8`) never reach AdGuard.
+
+To install or update apps, see "Updating apps on the LG TV" in the README.
+
 ---
 
 ## 12. Configure your router to use AdGuard Home as DNS

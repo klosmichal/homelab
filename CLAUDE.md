@@ -45,7 +45,9 @@ All services resolve via DNS names (`*.michalklos.com`), never by IP. Traefik ha
 
 AdGuard Home provides:
 - DNS rewrite: `*.michalklos.com` → `192.168.10.10`
-- Ad/tracker blocking via AdGuard DNS filter, OISD Big, and HaGeZi Multi PRO lists
+- Ad/tracker blocking via AdGuard DNS filter, HaGeZi Pro, and the MajkiIT / Polish Pi-hole lists
+- Malware/phishing blocking via HaGeZi Threat Intelligence Feeds, HaGeZi Badware Hoster, and CERT Polska
+- LG TV lockdown: two local lists in `config/adguardhome/userfilters/`, every rule scoped to the TV with `$client='192.168.10.12'`. `lg-tv-always.txt` (telemetry, ACR, ThinQ, network scanning) stays enabled; `lg-tv-lockdown.txt` (firmware, app downloads, store) is unticked in the web UI for an update and ticked again afterwards. `pl.nextlgsdp.com` must never be blocked: the TV sets its clock from it and apps fail without it. `config-sync` copies these files to `${APPDATA_ROOT}/adguardhome/work/data/userfilters/`, which AdGuard reads as `/opt/adguardhome/work/data/userfilters/`
 - Upstreams: Cloudflare `1.1.1.1`/`1.0.0.1` queried in `parallel` mode, with Quad9 as `fallback_dns`
 
 Note that AdGuard rewrites `AdGuardHome.yaml` itself whenever settings change in its web UI, so the runtime file can drift ahead of the repo copy. Diff before running `sync-config`, or UI changes are lost.

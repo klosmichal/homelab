@@ -45,6 +45,13 @@ if [[ ! -f "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml" ]]; then
   sudo cp "$ROOT_DIR/config/adguardhome/AdGuardHome.yaml" "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml"
 fi
 
+# Local blocklists that AdGuardHome.yaml points at
+sudo mkdir -p "$APPDATA_ROOT/adguardhome/work/data/userfilters"
+for f in "$ROOT_DIR"/config/adguardhome/userfilters/*.txt; do
+  dst="$APPDATA_ROOT/adguardhome/work/data/userfilters/$(basename "$f")"
+  [[ -f "$dst" ]] || sudo cp "$f" "$dst"
+done
+
 if [[ ! -f "$APPDATA_ROOT/samba/smb.conf" ]]; then
   sudo cp "$ROOT_DIR/config/samba/smb.conf" "$APPDATA_ROOT/samba/smb.conf"
 fi

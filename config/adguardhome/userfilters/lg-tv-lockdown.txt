@@ -1,0 +1,28 @@
+! Title: LG TV — lockdown
+! Description: LG G4 firmware, app downloads and store. To install or update apps, untick this
+! list in AdGuard (Filters → DNS blocklists), update, then tick it again.
+! Every rule is scoped to the TV (192.168.10.12, reserved in the router's DHCP).
+! pl.nextlgsdp.com is deliberately absent: the TV sets its clock from it, and apps fail without it.
+! Synced from the repo by `just sync-config` — edit config/adguardhome/userfilters/, not the runtime copy.
+
+! Firmware OTA and file transfer
+||lge.com^$client='192.168.10.12'
+||wiselg.com^$client='192.168.10.12'
+
+! nextlgsdp download and billing hosts, named one by one so pl.nextlgsdp.com stays reachable
+||ngfts.nextlgsdp.com^$client='192.168.10.12'
+||gfts.nextlgsdp.com^$client='192.168.10.12'
+||eic-gfts.nextlgsdp.com^$client='192.168.10.12'
+||aic-gfts.nextlgsdp.com^$client='192.168.10.12'
+||kic-gfts.nextlgsdp.com^$client='192.168.10.12'
+||eic-ngfts.nextlgsdp.com^$client='192.168.10.12'
+||aic-ngfts.nextlgsdp.com^$client='192.168.10.12'
+||kic-ngfts.nextlgsdp.com^$client='192.168.10.12'
+||ibs.nextlgsdp.com^$client='192.168.10.12'
+||ibsstat.nextlgsdp.com^$client='192.168.10.12'
+
+! Content Store, LG account, region API
+||lgtvsdp.com^$client='192.168.10.12'
+||lgappstv.com^$client='192.168.10.12'
+||lgeapi.com^$client='192.168.10.12'
+||lgwebostv.com^$client='192.168.10.12'

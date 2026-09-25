@@ -42,6 +42,8 @@ write_as() {
 #   pull — the app owns the file; we only ever copy it back into the repo
 FILES=(
   "config/adguardhome/AdGuardHome.yaml|adguardhome/conf/AdGuardHome.yaml|both"
+  "config/adguardhome/userfilters/lg-tv-always.txt|adguardhome/work/data/userfilters/lg-tv-always.txt|both"
+  "config/adguardhome/userfilters/lg-tv-lockdown.txt|adguardhome/work/data/userfilters/lg-tv-lockdown.txt|both"
   "config/samba/smb.conf|samba/smb.conf|both"
   "config/qbittorrent/qBittorrent.conf|qbittorrent/config/qBittorrent/qBittorrent.conf|both"
   "config/gluetun/auth/config.toml|gluetun/auth/config.toml|both"

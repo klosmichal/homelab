@@ -134,9 +134,24 @@ filters:
     url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_48.txt
     name: HaGeZi's Pro Blocklist
     id: 1777193525
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_44.txt
+    name: HaGeZi's Threat Intelligence Feeds
+    id: 1777193526
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_55.txt
+    name: HaGeZi's Badware Hoster Blocklist
+    id: 1777193527
+  - enabled: true
+    url: /opt/adguardhome/work/data/userfilters/lg-tv-always.txt
+    name: LG TV — always blocked
+    id: 1777193528
+  - enabled: true
+    url: /opt/adguardhome/work/data/userfilters/lg-tv-lockdown.txt
+    name: LG TV — lockdown (untick to update apps)
+    id: 1777193529
 whitelist_filters: []
 user_rules:
-  - '@@||ls.hit.gemius.pl^$client=''192.168.10.12'''
   - ""
 dhcp:
   enabled: false

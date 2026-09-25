@@ -1,0 +1,33 @@
+! Title: LG TV — always blocked
+! Description: LG G4 traffic the TV never needs, update windows included. Keep this list enabled.
+! Every rule is scoped to the TV (192.168.10.12, reserved in the router's DHCP).
+! Synced from the repo by `just sync-config` — edit config/adguardhome/userfilters/, not the runtime copy.
+
+! Telemetry / IoT
+||lgtvcommon.com^$client='192.168.10.12'
+||lgtviot.com^$client='192.168.10.12'
+||lgsmartplatform.com^$client='192.168.10.12'
+||eic.tv.wiselg.com^$client='192.168.10.12'
+||pl.tv.wiselg.com^$client='192.168.10.12'
+
+! ThinQ cloud, remote voice search, Gallery+
+||lgthinq.com^$client='192.168.10.12'
+||lgsmartweb.com^$client='192.168.10.12'
+||lggalleryplus.com^$client='192.168.10.12'
+
+! Network scanning: Hue bridge discovery, UEI QuickSet device identification
+||discovery.meethue.com^$client='192.168.10.12'
+||ueiwsp.com^$client='192.168.10.12'
+
+! Ads / ACR — also in HaGeZi Pro, repeated so the TV block does not depend on it
+||lgsmartad.com^$client='192.168.10.12'
+||lgads.tv^$client='192.168.10.12'
+||alphonso.tv^$client='192.168.10.12'
+
+! Encrypted DNS by hostname, so the TV cannot switch away from AdGuard
+||dns.google^$client='192.168.10.12'
+||cloudflare-dns.com^$client='192.168.10.12'
+||dns.quad9.net^$client='192.168.10.12'
+
+! Exception: Gemius measurement host, kept reachable for the TV only
+@@||ls.hit.gemius.pl^$client='192.168.10.12'

@@ -105,11 +105,19 @@ is how you capture those changes back. Home Assistant's `automations.yaml`,
 Run both with `sudo`, or answer the password prompt: the runtime
 `AdGuardHome.yaml` is root-owned.
 
+### Updating apps on the LG TV
+
+The TV is cut off from LG's firmware, download and store servers by the
+**LG TV — lockdown** blocklist. To install or update apps (or firmware): AdGuard
+Home → Filters → DNS blocklists → untick **LG TV — lockdown**, do the update,
+then tick it again. **LG TV — always blocked** stays on throughout. A forgotten
+re-tick shows up in `just diff-config` as `enabled: false`.
+
 ## Stack
 
 - **OS:** Ubuntu Server 24.04 LTS
 - **Proxy:** Traefik v3.6 — HTTPS via Let's Encrypt DNS-01 (Cloudflare)
-- **DNS:** AdGuard Home — local rewrite `*.michalklos.com → 192.168.10.10`, Cloudflare upstreams with Quad9 fallback
+- **DNS:** AdGuard Home — local rewrite `*.michalklos.com → 192.168.10.10`, Cloudflare upstreams with Quad9 fallback, HaGeZi Pro + Threat Intelligence Feeds, LG TV lockdown lists
 - **Remote access:** Tailscale (VPN)
 - **Media stack:** Prowlarr, Radarr, Sonarr, Bazarr, Seerr — qBittorrent behind Gluetun (NordVPN WireGuard)
 - **Hardware acceleration:** Intel Quick Sync / VA-API + OpenVINO via `/dev/dri`
