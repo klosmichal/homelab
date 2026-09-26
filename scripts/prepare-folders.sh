@@ -23,9 +23,15 @@ sudo mkdir -p \
   "$APPDATA_ROOT/sonarr/config" \
   "$APPDATA_ROOT/bazarr/config" \
   "$APPDATA_ROOT/seerr/config" \
-  "$APPDATA_ROOT/recyclarr/config"
+  "$APPDATA_ROOT/recyclarr/config" \
+  "$APPDATA_ROOT/mosquitto/data" \
+  "$APPDATA_ROOT/zigbee2mqtt/data" \
+  "$APPDATA_ROOT/matter-server"
 
 sudo chown -R 1000:1000 "$APPDATA_ROOT/seerr"
+# matter-server's image always runs as UID 1000; zigbee2mqtt runs as PUID
+sudo chown -R 1000:1000 "$APPDATA_ROOT/matter-server"
+sudo chown -R "${PUID}:${PGID}" "$APPDATA_ROOT/zigbee2mqtt"
 
 # Media directories (MEDIA_ROOT lives on external HDD)
 sudo mkdir -p \
@@ -59,6 +65,12 @@ fi
 if [[ ! -f "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf" ]]; then
   sudo cp "$ROOT_DIR/config/qbittorrent/qBittorrent.conf" "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf"
   sudo chown "${PUID}:${PGID}" "$APPDATA_ROOT/qbittorrent/config/qBittorrent/qBittorrent.conf"
+fi
+
+# Seed only: Zigbee2MQTT writes the network key into this file on first start
+if [[ ! -f "$APPDATA_ROOT/zigbee2mqtt/data/configuration.yaml" ]]; then
+  sudo cp "$ROOT_DIR/config/zigbee2mqtt/configuration.yaml" "$APPDATA_ROOT/zigbee2mqtt/data/configuration.yaml"
+  sudo chown "${PUID}:${PGID}" "$APPDATA_ROOT/zigbee2mqtt/data/configuration.yaml"
 fi
 
 # Traefik basic auth — protects all *_HOST routes via the traefik-auth middleware

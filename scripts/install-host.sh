@@ -36,4 +36,6 @@ ufw allow from 172.16.0.0/12 to any port 8123 proto tcp
 ufw allow from 192.168.0.0/16 to any port 8123 proto tcp
 ufw --force enable
 
+bash "$(dirname "$0")/setup-matter-host.sh"
+
 echo "Host is ready. Next: fill in env/.env and run prepare-folders.sh"

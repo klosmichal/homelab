@@ -53,6 +53,7 @@ containers=(
   traefik adguardhome tailscale
   homepage
   jellyfin homeassistant
+  mosquitto zigbee2mqtt matter-server
   filebrowser samba
   immich_server immich_machine_learning immich_redis immich_postgres
   portainer stirling_pdf
@@ -96,6 +97,7 @@ route_hosts=(
   "${RADARR_HOST:-radarr.$LOCAL_DNS_ZONE}"
   "${SONARR_HOST:-sonarr.$LOCAL_DNS_ZONE}"
   "${QBITTORRENT_HOST:-qbit.$LOCAL_DNS_ZONE}"
+  "${ZIGBEE2MQTT_HOST:-z2m.$LOCAL_DNS_ZONE}"
 )
 for h in "${route_hosts[@]}"; do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "https://$h" 2>/dev/null || echo 000)
@@ -106,6 +108,19 @@ for h in "${route_hosts[@]}"; do
     *)                   warn "$h -> $code" ;;
   esac
 done
+
+# --- 5. Thread routing (Matter) --------------------------------------------
+# The SLZB-MR5U's border router advertises a route to the Thread mesh (an fd..
+# prefix via its link-local address). Without it matter-server can commission
+# nothing over Thread and existing Thread devices go unavailable.
+echo "5. Thread routing"
+lan_if=$(ip route show default | awk '{print $5; exit}')
+thread_route=$(ip -6 route show dev "$lan_if" 2>/dev/null | awk '/^fd.* via /{print $1; exit}')
+if [[ -n "$thread_route" ]]; then
+  ok "route to Thread network $thread_route on $lan_if"
+else
+  warn "no route to a Thread network on $lan_if (border router down, or host not accepting its router advertisements)"
+fi
 
 # --- Summary -----------------------------------------------------------------
 echo

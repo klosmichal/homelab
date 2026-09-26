@@ -33,9 +33,9 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 
 ### Single-file stack
 
-`docker-compose.yml` defines all 22 services. Two networks:
+`docker-compose.yml` defines all 25 services. Two networks:
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
-- `internal` — databases and caches only (never touch Traefik)
+- `internal` — databases, caches and the MQTT broker (never touch Traefik)
 
 No optional profiles — all services run as part of the core stack.
 
@@ -54,7 +54,15 @@ Note that AdGuard rewrites `AdGuardHome.yaml` itself whenever settings change in
 
 Remote access is Tailscale only (mesh VPN, no port forwarding).
 
-Home Assistant and Tailscale use host networking. qBittorrent has no network of its own — it runs inside Gluetun's namespace (`network_mode: service:gluetun`), so its traffic leaves through the NordVPN WireGuard tunnel and its Traefik labels live on the `gluetun` service. Every other service uses the bridge networks above.
+Home Assistant, Tailscale and the Matter server use host networking. qBittorrent has no network of its own — it runs inside Gluetun's namespace (`network_mode: service:gluetun`), so its traffic leaves through the NordVPN WireGuard tunnel and its Traefik labels live on the `gluetun` service. Every other service uses the bridge networks above.
+
+### Zigbee, Thread and Matter
+
+An SMLIGHT SLZB-MR5U on the LAN (Ethernet) carries both radios; nothing is passed through over USB.
+- **Zigbee:** Zigbee2MQTT reaches the coordinator at `ZIGBEE_ADAPTER_URL` (`tcp://<slzb-ip>:6638`, ember adapter) and publishes to Mosquitto. Mosquitto is on `internal` and published on `127.0.0.1:1883` only, which is how host-networked Home Assistant reaches it. Its password file is generated from `MQTT_USERNAME`/`MQTT_PASSWORD` on every container start; `config/mosquitto/mosquitto.conf` is mounted read-only straight from the repo
+- **Zigbee2MQTT config:** `config/zigbee2mqtt/configuration.yaml` is a seed that `prepare-folders.sh` copies once. Zigbee2MQTT then owns the runtime file and writes the network key into it, so it is deliberately left out of `config-sync.sh`: a pull would commit the key. Adapter address and MQTT credentials come from `ZIGBEE2MQTT_CONFIG_*` env vars instead
+- **Thread:** the OpenThread border router runs on the SLZB itself (mode "Thread + OTBR running on device", REST API on `:8080`); there is no OTBR container. It advertises the route to the Thread mesh by IPv6 router advertisement, so the host must accept RAs on `HOST_LAN_INTERFACE` and keep IPv6 forwarding off. `just verify` warns when the route is missing
+- **Matter:** `matter-server` (matter.js) listens on `127.0.0.1:5580` only. `scripts/setup-matter-host.sh` (run by `install-host.sh`) opens UFW to `fd00::/8` and `fe80::/10` on the LAN interface, raises the UDP conntrack timeout to 3600 s for sleepy devices, and allows unprivileged ping
 
 ### Configuration
 
@@ -66,6 +74,7 @@ Key env variable groups:
 - `HOST_*` — server identity and network (LAN IP: `192.168.10.10`)
 - `*_ROOT` — filesystem mount points (`APPDATA_ROOT=/srv/homelab`, `MEDIA_ROOT=/srv/data`)
 - `*_HOST` — service DNS names (`JELLYFIN_HOST=jellyfin.michalklos.com`, etc.)
+- `MQTT_*`, `ZIGBEE_ADAPTER_URL` — broker credentials and the SLZB-MR5U's Zigbee radio (an IP, so Zigbee does not depend on AdGuard Home)
 - `PUID`/`PGID` — UID/GID for linuxserver.io containers (default `1000`)
 - `TZ=Europe/Warsaw`
 

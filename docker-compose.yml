@@ -189,6 +189,99 @@ services:
       - traefik.http.routers.homeassistant.tls.certresolver=letsencrypt
       - traefik.http.services.homeassistant.loadbalancer.server.url=http://host.docker.internal:8123
 
+  # MQTT broker between Zigbee2MQTT and Home Assistant. Published on loopback
+  # only: Home Assistant (host network) connects to 127.0.0.1:1883, Zigbee2MQTT
+  # over the internal network, and nothing on the LAN can reach it.
+  # The password file is rebuilt from .env on every start. mosquitto_passwd -c
+  # refuses to overwrite an existing file, hence the rm; the chown is needed
+  # because the broker drops to the mosquitto user before reading it.
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /mosquitto/data/passwd &&
+        mosquitto_passwd -c -b /mosquitto/data/passwd "$$MQTT_USERNAME" "$$MQTT_PASSWORD" &&
+        chown mosquitto:mosquitto /mosquitto/data/passwd &&
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -u \"$$MQTT_USERNAME\" -P \"$$MQTT_PASSWORD\" -t '$$SYS/broker/uptime' -C 1 -W 5 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      - TZ=${TZ}
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    ports:
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${APPDATA_ROOT}/mosquitto/data:/mosquitto/data
+    networks:
+      - internal
+
+  # Talks to the Zigbee radio of the SMLIGHT SLZB-MR5U over TCP, so no USB
+  # device is passed through. configuration.yaml is seeded once by
+  # prepare-folders.sh and owned by Zigbee2MQTT afterwards; the adapter address
+  # and MQTT credentials come from the ZIGBEE2MQTT_CONFIG_* variables below,
+  # which override the file. The seeded config means onboarding never runs.
+  zigbee2mqtt:
+    image: ghcr.io/koenkk/zigbee2mqtt:latest
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    user: ${PUID}:${PGID}
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    environment:
+      - TZ=${TZ}
+      - Z2M_ONBOARD_NO_SERVER=1
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZIGBEE_ADAPTER_URL}
+      - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USERNAME}
+      - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
+    volumes:
+      - ${APPDATA_ROOT}/zigbee2mqtt/data:/app/data
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.zigbee2mqtt.rule=Host(`${ZIGBEE2MQTT_HOST}`)
+      - traefik.http.routers.zigbee2mqtt.entrypoints=websecure
+      - traefik.http.routers.zigbee2mqtt.tls.certresolver=letsencrypt
+      - traefik.http.routers.zigbee2mqtt.middlewares=traefik-auth
+      - traefik.http.services.zigbee2mqtt.loadbalancer.server.port=8080
+      - traefik.docker.network=proxy
+
+  # Matter controller for Home Assistant's Matter integration (ws://localhost:5580/ws).
+  # Host networking is required: Matter depends on IPv6 link-local multicast and
+  # on the host's routes into the Thread network, which the SLZB-MR5U's border
+  # router advertises. The host side (UFW rules, conntrack timeout, ping) is set
+  # up by scripts/setup-matter-host.sh. Runs as UID 1000 inside the image.
+  matter-server:
+    image: ghcr.io/matter-js/matterjs-server:stable
+    container_name: matter-server
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    environment:
+      - TZ=${TZ}
+      - LISTEN_ADDRESS=127.0.0.1
+      - PRIMARY_INTERFACE=${HOST_LAN_INTERFACE}
+    volumes:
+      - ${APPDATA_ROOT}/matter-server:/data
+
   samba:
     image: dockurr/samba
     container_name: samba

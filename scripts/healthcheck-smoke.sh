@@ -5,6 +5,7 @@ for c in \
   traefik adguardhome tailscale \
   homepage \
   jellyfin homeassistant \
+  mosquitto zigbee2mqtt matter-server \
   filebrowser samba \
   immich_server immich_machine_learning immich_redis immich_postgres \
   portainer stirling_pdf \

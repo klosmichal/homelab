@@ -16,6 +16,7 @@ Your device
     │    ├── jellyfin.michalklos.com  (Jellyfin)               │
     │    ├── immich.michalklos.com    (Immich)                 │
     │    ├── ha.michalklos.com        (Home Assistant)         │
+    │    ├── z2m.michalklos.com       (Zigbee2MQTT)            │
     │    ├── dns.michalklos.com       (AdGuard Home)           │
     │    ├── files.michalklos.com     (FileBrowser)            │
     │    ├── pdf.michalklos.com       (Stirling PDF)           │
@@ -29,6 +30,9 @@ Your device
     │    └── traefik.michalklos.com   (Traefik dashboard)      │
     │                                                          │
     │  [Samba :445]  ←  LAN file shares                        │
+    │                                                          │
+    │  [SLZB-MR5U]  Zigbee radio ── tcp ──→ Zigbee2MQTT → MQTT │
+    │               Thread border router ←→ Matter server      │
     └──────────────────────────────────────────────────────────┘
     │
     └─── Tailscale VPN  (remote access to all services)
@@ -42,6 +46,7 @@ Your device
 | Jellyfin | `jellyfin.michalklos.com` | Media streaming (Intel QSV) |
 | Immich | `immich.michalklos.com` | Photo management (OpenVINO) |
 | Home Assistant | `ha.michalklos.com` | Home automation |
+| Zigbee2MQTT | `z2m.michalklos.com` | Zigbee devices via the SLZB-MR5U |
 | AdGuard Home | `dns.michalklos.com` | DNS + ad blocking |
 | FileBrowser | `files.michalklos.com` | Web file manager |
 | Stirling PDF | `pdf.michalklos.com` | PDF tools |
@@ -63,6 +68,8 @@ No web UI of their own:
 | Recyclarr | Syncs TRaSH Guides quality profiles into Radarr and Sonarr |
 | Tailscale | Mesh VPN for remote access, advertises `192.168.10.0/24` |
 | Immich Postgres / Redis / ML | Immich's database, cache, and OpenVINO inference |
+| Mosquitto | MQTT broker between Zigbee2MQTT and Home Assistant, loopback-only (`127.0.0.1:1883`) |
+| Matter Server | Matter controller for Home Assistant (`ws://localhost:5580/ws`), host networking |
 
 ## Quick start
 
@@ -120,5 +127,6 @@ re-tick shows up in `just diff-config` as `enabled: false`.
 - **DNS:** AdGuard Home — local rewrite `*.michalklos.com → 192.168.10.10`, Cloudflare upstreams with Quad9 fallback, HaGeZi Pro + Threat Intelligence Feeds, LG TV lockdown lists
 - **Remote access:** Tailscale (VPN)
 - **Media stack:** Prowlarr, Radarr, Sonarr, Bazarr, Seerr — qBittorrent behind Gluetun (NordVPN WireGuard)
+- **Smart home:** Home Assistant, Zigbee2MQTT + Mosquitto, Matter server; SMLIGHT SLZB-MR5U as Zigbee coordinator and Thread border router over Ethernet
 - **Hardware acceleration:** Intel Quick Sync / VA-API + OpenVINO via `/dev/dri`
 - **Backups:** restic → USB disk, weekly cron

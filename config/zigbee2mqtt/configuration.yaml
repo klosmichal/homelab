@@ -1,0 +1,38 @@
+# Seed for Zigbee2MQTT. prepare-folders.sh copies it to
+# ${APPDATA_ROOT}/zigbee2mqtt/data/ only when no configuration exists yet.
+# From then on Zigbee2MQTT owns the file: it replaces the GENERATE values with
+# the real network key and IDs, and saves every frontend change into it. That
+# is why config-sync.sh does not track it: a pull would commit the network key.
+#
+# The adapter address and the MQTT credentials are not here. They come from
+# the ZIGBEE2MQTT_CONFIG_* variables in docker-compose.yml, which override this
+# file without being written back to it.
+version: 5
+
+homeassistant:
+  enabled: true
+
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+
+serial:
+  # EmberZNet firmware on the SLZB-MR5U's EFR32MG24
+  adapter: ember
+
+frontend:
+  enabled: true
+  port: 8080
+
+availability:
+  enabled: true
+
+advanced:
+  # 25 sits above Wi-Fi channel 11, clear of 1/6/11. Keep Thread on a
+  # different channel (15 is the usual pick). The ember adapter can move the
+  # network to another channel later without re-pairing most devices.
+  channel: 25
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+  log_level: info

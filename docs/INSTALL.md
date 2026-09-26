@@ -68,6 +68,9 @@ Open `~/homelab/.env` and fill in all values:
 | `SAMBA_PASSWORD` | Samba share password |
 | `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |
 | `NORDVPN_PRIVATE_KEY` | WireGuard private key from step 4c |
+| `MQTT_PASSWORD` | Strong random password for the Mosquitto broker (`MQTT_USERNAME` defaults to `homelab`) |
+| `ZIGBEE_ADAPTER_URL` | `tcp://<slzb-ip>:6638` — the SLZB-MR5U's Zigbee radio, filled in during step 14 |
+| `HOST_LAN_INTERFACE` | LAN network interface, `enp3s0` on this host (`ip route show default`) |
 
 All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if differs.
 
@@ -149,11 +152,13 @@ Installs Docker Engine, UFW firewall rules, Intel GPU drivers, and tools:
 sudo bash scripts/install-host.sh
 ```
 
+It finishes by running `scripts/setup-matter-host.sh`, which prepares the host for the Matter server: UFW rules for Thread and link-local IPv6, a longer UDP conntrack timeout, and unprivileged ping. On a host installed before that script existed, run it on its own: `sudo bash scripts/setup-matter-host.sh`.
+
 ---
 
 ## 9. Prepare data directories and configs
 
-Creates all required directories — app data under `/srv/homelab`, the media library + downloads under `${MEDIA_ROOT}` (`/mnt/media`), and the Immich library under `${IMMICH_LIBRARY_ROOT}` (`/srv/data/immich/library`) — and seeds initial configs for AdGuard Home, Samba, and qBittorrent. Idempotent — safe to re-run after adding new services:
+Creates all required directories — app data under `/srv/homelab`, the media library + downloads under `${MEDIA_ROOT}` (`/mnt/media`), and the Immich library under `${IMMICH_LIBRARY_ROOT}` (`/srv/data/immich/library`) — and seeds initial configs for AdGuard Home, Samba, qBittorrent, and Zigbee2MQTT. Idempotent — safe to re-run after adding new services:
 
 ```bash
 bash scripts/prepare-folders.sh
@@ -292,6 +297,29 @@ sudo ufw status | grep 8123
 
 Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or `https://ha.michalklos.com` once DNS is working.
 
+### Zigbee and Matter (SMLIGHT SLZB-MR5U)
+
+The SLZB-MR5U sits on the LAN over Ethernet (PoE, or USB-C for power). It has two EFR32MG24 radios: one is the Zigbee coordinator for Zigbee2MQTT, the other runs Thread with the OpenThread border router on the device itself, so there is no OTBR container.
+
+1. **Coordinator.** Connect it, find its IP in the router's DHCP list and reserve it (Archer BE230: Advanced → Network → DHCP Server → Address Reservation). In its web UI at `http://<slzb-ip>`:
+   - update SLZB-OS first, then the firmware of both radios. Use stable releases: SLZB-OS v3.3.3.dev4 loses the Thread route after every reboot
+   - set a web UI password and the timezone
+   - set the Zigbee radio to Zigbee coordinator over Ethernet (EmberZNet firmware) and note its TCP port on the dashboard (6638 by default)
+   - set the Thread radio to Mode → **Thread + OTBR running on device**, on a different channel from Zigbee's 25 (15 works)
+2. **`.env`.** Set `ZIGBEE_ADAPTER_URL=tcp://<slzb-ip>:<port>` and `MQTT_PASSWORD`.
+3. **Start.** `bash scripts/prepare-folders.sh`, then `just up mosquitto zigbee2mqtt matter-server`.
+4. **Home Assistant** → Settings → Devices & services → Add integration:
+   - **MQTT**: broker `127.0.0.1`, port `1883`, `MQTT_USERNAME` / `MQTT_PASSWORD`. Zigbee2MQTT devices then appear through MQTT discovery
+   - **SMLIGHT SLZB**: usually discovered automatically; adds firmware update entities and coordinator sensors
+   - **OpenThread Border Router**: `http://<slzb-ip>:8080`
+   - **Thread**: mark the SLZB's network as the preferred network
+   - **Matter**: `ws://localhost:5580/ws`
+   - In the Companion app on your phone, sync the Thread credentials before commissioning any Thread device
+5. **Check routing.** `just verify` must show a route to the Thread network in section 5 (`fd…::/64 via fe80::…`). Reboot the SLZB and run it again: the route has to come back. If it never appears, the host is not accepting the border router's advertisements: check `networkctl status enp3s0` and that the netplan config does not set `accept-ra: false`.
+6. **Pair Zigbee devices** at `https://z2m.michalklos.com` (behind Traefik basic auth) → Permit join. For a Sonoff TRVZB, open its OTA tab after pairing and update the firmware before configuring it: valve opening control needs v1.1.4+, temperature accuracy v1.3.0+, and the adaptive (PID) valve control v1.4.4+.
+
+`${APPDATA_ROOT}/zigbee2mqtt/data` holds the Zigbee network key and coordinator backup, and `${APPDATA_ROOT}/matter-server` the Matter fabric. Losing either means re-pairing every device.
+
 ### Homepage
 The dashboard config lives in `config/homepage/` in the repo and is synced to `${APPDATA_ROOT}/homepage/config/` (mapped to `/app/config` in the container). See the [Homepage docs](https://gethomepage.dev).
 
@@ -385,6 +413,7 @@ just verify
 2. **Containers up & healthy** — every expected container is `running`; those with healthchecks report `healthy` (`starting` is a transient warning right after boot).
 3. **VPN egress** — Gluetun is up and returns a public IP; qBittorrent has no network if Gluetun is down. Confirm the printed IP is the VPN's, not your home IP.
 4. **Public routes** — each key `*.michalklos.com` host answers through Traefik with a valid cert. `200/301/302/401/403` are all fine; `000` is a DNS/Traefik/cert problem; `502/503/504` means the backing container is down.
+5. **Thread routing** — the host has a route to the Thread network through the SLZB-MR5U's border router. Without it, Matter-over-Thread devices are unreachable. It is a warning rather than a failure.
 
 The script exits non-zero if any hard check fails. Investigate failures with `just logs <service>`. For a quick container-only presence check, `just check` still runs the lightweight smoke test.
 
