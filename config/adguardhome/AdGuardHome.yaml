@@ -10,7 +10,7 @@ http:
       - POST /dns-query/{ClientID}
     insecure_enabled: false
   address: 0.0.0.0:3000
-  session_ttl: 720h
+  session_ttl: 30d
 users:
   - name: admin
     password: $2y$05$NvtaSOciU6Ciufq.3pqtq.jYh0Ct8YbnchLvGjZYTQi/M0Ylkn4sO
@@ -98,7 +98,7 @@ tls:
 querylog:
   dir_path: ""
   ignored: []
-  interval: 720h
+  interval: 30d
   size_memory: 1000
   enabled: true
   ignored_enabled: false
@@ -106,7 +106,7 @@ querylog:
 statistics:
   dir_path: ""
   ignored: []
-  interval: 720h
+  interval: 30d
   enabled: true
   ignored_enabled: false
 filters:
@@ -196,6 +196,7 @@ filtering:
       enabled: true
   safe_fs_patterns:
     - /opt/adguardhome/work/data/userfilters/*
+  max_http_size: 256MB
   safebrowsing_cache_size: 1048576
   safesearch_cache_size: 1048576
   parental_cache_size: 1048576
