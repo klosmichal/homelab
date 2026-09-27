@@ -2,16 +2,6 @@
 # Loads default set of integrations. Do not remove.
 default_config:
 
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - 192.168.10.10
-    # Docker bridge pool - the `proxy` network subnet is not pinned and has
-    # drifted (172.18 -> 172.20), so trust the whole private range Docker
-    # allocates from rather than a single subnet.
-    - 172.16.0.0/12
-
 logger:
   default: info
   logs:

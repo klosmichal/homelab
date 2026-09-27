@@ -276,18 +276,12 @@ Open `https://immich.michalklos.com` → create admin account. Hardware ML accel
 ### Home Assistant
 Home Assistant runs in `network_mode: host` so it can access Bluetooth, mDNS, and other LAN protocols. Because of this it can't join the Docker `proxy` network, so Traefik reaches it via `host.docker.internal` (mapped to the Docker bridge gateway via `extra_hosts: host-gateway` on the Traefik service) rather than by container name.
 
-`configuration.yaml` must trust the Docker proxy subnet as a reverse proxy — otherwise HA rejects forwarded headers. The relevant section (already in place):
+HA must trust Traefik as a reverse proxy, otherwise it rejects forwarded headers and `ha.michalklos.com` answers 400. In current HA releases the HTTP settings live in the UI, not in `configuration.yaml` (an `http:` block there is ignored and raises a repair warning). After first-time setup at `http://192.168.10.10:8123`, go to **Settings → System → Network** and set:
 
-```yaml
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - 192.168.10.10
-    - 172.18.0.0/16   # Docker proxy network
-```
+- Use X-Forwarded-For: on
+- Trusted proxies: `127.0.0.1`, `192.168.10.10`, `172.16.0.0/12`
 
-If you ever recreate the stack and the `proxy` network gets a different subnet, update this value and restart HA (`docker restart homeassistant`).
+`172.16.0.0/12` is Docker's whole private pool rather than the `proxy` network's subnet, because that subnet is not pinned and has drifted before (172.18 → 172.20).
 
 UFW must also allow port 8123 from Docker's private range and the LAN — this is handled by `install-host.sh`. If HA is unreachable through Traefik (504), check that these UFW rules are present:
 ```bash
