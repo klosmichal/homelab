@@ -302,17 +302,18 @@ Open `http://192.168.10.10:8123` for first-time setup (before DNS is ready), or 
 The SLZB-MR5U sits on the LAN over Ethernet (PoE, or USB-C for power). It has two EFR32MG24 radios: one is the Zigbee coordinator for Zigbee2MQTT, the other runs Thread with the OpenThread border router on the device itself, so there is no OTBR container.
 
 1. **Coordinator.** Connect it, find its IP in the router's DHCP list and reserve it (Archer BE230: Advanced → Network → DHCP Server → Address Reservation). In its web UI at `http://<slzb-ip>`:
-   - update SLZB-OS first, then the firmware of both radios. Use stable releases: SLZB-OS v3.3.3.dev4 loses the Thread route after every reboot
+   - update SLZB-OS first, then the firmware of both radios. Use stable releases.
    - set a web UI password and the timezone
    - set the Zigbee radio to Zigbee coordinator over Ethernet (EmberZNet firmware) and note its TCP port on the dashboard (6638 by default)
-   - set the Thread radio to Mode → **Thread + OTBR running on device**, on a different channel from Zigbee's 25 (15 works)
+   - set the Thread radio to Mode → **Thread + OTBR running on device**
+   Channel plan: 2.4 GHz Wi-Fi fixed on channel 1 at 20 MHz width (router: Advanced → Wireless → Wireless Settings), Zigbee on 25, Thread on 15–22. On 40 MHz or "auto", Wi-Fi can land on top of either radio.
 2. **`.env`.** Set `ZIGBEE_ADAPTER_URL=tcp://<slzb-ip>:<port>` and `MQTT_PASSWORD`.
 3. **Start.** `bash scripts/prepare-folders.sh`, then `just up mosquitto zigbee2mqtt matter-server`.
 4. **Home Assistant** → Settings → Devices & services → Add integration:
    - **MQTT**: broker `127.0.0.1`, port `1883`, `MQTT_USERNAME` / `MQTT_PASSWORD`. Zigbee2MQTT devices then appear through MQTT discovery
    - **SMLIGHT SLZB**: usually discovered automatically; adds firmware update entities and coordinator sensors
    - **OpenThread Border Router**: `http://<slzb-ip>:8080`
-   - **Thread**: mark the SLZB's network as the preferred network
+   - **Thread**: Configure → ⋮ on the border router → **Reset border router**. The SLZB ships with the well-known OpenThread example credentials (network key `00112233…eeff`, name `OpenThread-ESP`); the reset replaces them with a random network and stores it in Home Assistant as preferred. The firmware picks the channel itself: reset again until it lands on 15–22. Never use **Change channel** — on this firmware it replaces the network with a new random one that Home Assistant does not know about, and once devices have joined that means re-pairing them
    - **Matter**: `ws://localhost:5580/ws`
    - In the Companion app on your phone, sync the Thread credentials before commissioning any Thread device
 5. **Check routing.** `just verify` must show a route to the Thread network in section 5 (`fd…::/64 via fe80::…`). Reboot the SLZB and run it again: the route has to come back. If it never appears, the host is not accepting the border router's advertisements: check `networkctl status enp3s0` and that the netplan config does not set `accept-ra: false`.

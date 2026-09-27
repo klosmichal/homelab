@@ -28,9 +28,9 @@ availability:
   enabled: true
 
 advanced:
-  # 25 sits above Wi-Fi channel 11, clear of 1/6/11. Keep Thread on a
-  # different channel (15 is the usual pick). The ember adapter can move the
-  # network to another channel later without re-pairing most devices.
+  # Channel plan: Wi-Fi 2.4 GHz on 1 (20 MHz), Zigbee on 25, Thread on 16.
+  # The ember adapter can move the network to another channel later without
+  # re-pairing most devices.
   channel: 25
   network_key: GENERATE
   pan_id: GENERATE
