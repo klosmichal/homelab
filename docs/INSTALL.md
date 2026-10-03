@@ -71,6 +71,8 @@ Open `~/homelab/.env` and fill in all values:
 | `MQTT_PASSWORD` | Strong random password for the Mosquitto broker (`MQTT_USERNAME` defaults to `homelab`) |
 | `ZIGBEE_ADAPTER_URL` | `tcp://<slzb-ip>:6638` — the SLZB-MR5U's Zigbee radio, filled in during step 14 |
 | `HOST_LAN_INTERFACE` | LAN network interface, `enp3s0` on this host (`ip route show default`) |
+| `USER_DATA_ROOT` | Personal files on the SSD, `/mnt/data` by default — shown in FileBrowser and backed up weekly |
+| `RESTIC_BIN` | The capability-enabled restic copy from step 15, `/usr/local/bin/restic-backup` by default |
 
 All `*_HOST` variables are pre-set to `*.michalklos.com`. Change the domain if differs.
 
@@ -97,13 +99,14 @@ The compose file mounts `env/traefik-users` into the Traefik container.
 
 ## 7. Mount the disks
 
-This host uses three storage areas:
+This host uses four storage areas:
 
 | Mount | Device | Holds |
 |---|---|---|
 | `/` (NVMe SSD) | internal | OS, `${APPDATA_ROOT}` (`/srv/homelab`), and the Immich library (`${IMMICH_LIBRARY_ROOT}` = `/srv/data/immich/library`) |
 | `/mnt/media` (8 TB USB HDD) | external | `${MEDIA_ROOT}` — Jellyfin library (`video/`) + qBittorrent/*arr downloads (`downloads/`) |
-| `/mnt/backup-usb` (USB HDD) | external | restic backup repository |
+| `/mnt/data` (NVMe SSD) | internal | `${USER_DATA_ROOT}` — personal files, browsable in FileBrowser next to the media disk |
+| `/mnt/backup-usb` (2 TB USB HDD, ext4) | external | restic backup repository |
 
 Jellyfin's library and the download pipeline live together on `/mnt/media` so Radarr/Sonarr can **hardlink** imports (instant, no double disk usage). Immich stays on the SSD, kept separate via its own `IMMICH_LIBRARY_ROOT` variable so it isn't pulled onto the media HDD.
 
@@ -129,18 +132,31 @@ df -h /mnt/media                            # confirm mounted at full size
 
 `nofail` lets the host boot if the disk is disconnected. Trade-off: if the disk is missing at boot, `/mnt/media` is an empty folder on the SSD and containers see an empty library — after any reboot, confirm `df -h /mnt/media` before trusting it.
 
-### 7b. Backup disk (`/mnt/backup-usb`)
+### 7b. Backup disk (2 TB HDD → `/mnt/backup-usb`)
+
+The Seagate Expansion disk ships as exFAT. Reformat it to ext4: exFAT has no journal, so a power cut during a backup can damage the restic repository.
 
 ```bash
-lsblk -f    # find your backup USB disk UUID
+lsblk -o NAME,SIZE,FSTYPE,TRAN,MODEL           # confirm the device (e.g. /dev/sdb) and size
+ls -l /dev/disk/by-id | grep Seagate_Expansion  # and that it is the Seagate, not the media disk
+
+# Partition + format (DESTROYS the disk — verify the device first):
+sudo parted /dev/sdb mklabel gpt
+sudo parted -a optimal /dev/sdb mkpart primary ext4 0% 100%
+sudo mkfs.ext4 -L backup -m 0 /dev/sdb1
 
 sudo mkdir -p /mnt/backup-usb
+sudo blkid /dev/sdb1                           # copy the UUID
 
-# add to /etc/fstab:
-echo 'UUID=YOUR-BACKUP-UUID /mnt/backup-usb ext4 defaults,nofail 0 2' | sudo tee -a /etc/fstab
+# add to /etc/fstab (use the UUID above):
+echo 'UUID=YOUR-BACKUP-UUID /mnt/backup-usb ext4 defaults,nofail,noatime 0 2' | sudo tee -a /etc/fstab
 
 sudo mount -a
+sudo chown mklos:mklos /mnt/backup-usb         # backups run as your user
+df -h /mnt/backup-usb                          # confirm ~1.8T
 ```
+
+The backup script refuses to run when `/mnt/backup-usb` is not a mountpoint, so a missing disk cannot put the repository on the SSD.
 
 ---
 
@@ -158,7 +174,7 @@ It finishes by running `scripts/setup-matter-host.sh`, which prepares the host f
 
 ## 9. Prepare data directories and configs
 
-Creates all required directories — app data under `/srv/homelab`, the media library + downloads under `${MEDIA_ROOT}` (`/mnt/media`), and the Immich library under `${IMMICH_LIBRARY_ROOT}` (`/srv/data/immich/library`) — and seeds initial configs for AdGuard Home, Samba, qBittorrent, and Zigbee2MQTT. Idempotent — safe to re-run after adding new services:
+Creates all required directories — app data under `/srv/homelab`, the media library + downloads under `${MEDIA_ROOT}` (`/mnt/media`), the Immich library under `${IMMICH_LIBRARY_ROOT}` (`/srv/data/immich/library`) plus its `db-dump/` sibling, and `${USER_DATA_ROOT}` (`/mnt/data`) — and seeds initial configs for AdGuard Home, Samba, qBittorrent, and Zigbee2MQTT. Idempotent — safe to re-run after adding new services:
 
 ```bash
 bash scripts/prepare-folders.sh
@@ -381,16 +397,37 @@ Configure in this order — each service's API key is needed by the next:
 
 ## 15. Schedule weekly backups
 
+With the backup disk mounted (step 7b):
+
 ```bash
-crontab -e
+sudo bash scripts/setup-backup.sh
+just backup          # first full run, as your user — takes a while (~50 GB of Immich)
+just snapshots       # three snapshots: config, immich, data
 ```
 
-Add:
-```
-0 3 * * 0 /bin/bash /home/mklos/homelab/scripts/backup.sh >> /var/log/homelab-backup.log 2>&1
-```
+`setup-backup.sh` is the only step that needs root:
 
-This runs every Sunday at 03:00. The script dumps the Immich PostgreSQL database and runs `restic backup` with retention (8 weekly, 6 monthly snapshots).
+- **`/usr/local/bin/restic-backup`** — a copy of restic carrying the `cap_dac_read_search` capability. It can read any file, including the root-only Docker volumes and `/srv/homelab/mosquitto`, but cannot write them. It is owned `root:mklos` with mode `0750`, so only your user can run it. Because `mklos` is already in the `docker` group, which is root-equivalent, this grants nothing new. **Re-run `setup-backup.sh` after every restic upgrade**: apt replaces `/usr/bin/restic` but not this copy, and `backup.sh` refuses to run if the copy has lost its capability.
+- **`/etc/cron.d/homelab-backup`** — from `config/cron/homelab-backup`: Sunday 03:00, as `mklos`, logging to `/var/log/homelab-backup.log`.
+
+Each run of `scripts/backup.sh` makes three snapshots, one per tag:
+
+| Tag | Contents | Stack |
+|---|---|---|
+| `config` | `/srv/homelab`, this repo including `.env`, and the Docker volumes `letsencrypt`, `jellyfin_config`, `portainer_data`, `stirling_data`, `filebrowser_data`, `filebrowser_db`. Logs, AdGuard's query log, Jellyfin's cache/transcodes and the stray `qbittorrent/config/Downloads` are excluded. | Stopped for 1–2 minutes, except Tailscale, so SQLite databases are consistent. DNS falls back to 1.1.1.1 meanwhile |
+| `immich` | `/srv/data/immich`: the photo library plus `db-dump/immich-postgres.sql`, a `pg_dumpall` taken first | Running |
+| `data` | `/mnt/data` | Running |
+
+`immich_pgdata` is covered by the dump and `immich_model_cache` is re-downloadable, so neither is backed up. Retention is `RESTIC_RETENTION_WEEKLY` weekly + `RESTIC_RETENTION_MONTHLY` monthly snapshots per tag (8 + 6), and each run verifies 5% of the repository data.
+
+To roll back one service, see `bash scripts/restore-notes.sh`, e.g.:
+
+```bash
+just stop radarr
+set -a; source .env; set +a
+sudo -E restic restore latest --tag config --target / --include /srv/homelab/radarr
+just up radarr
+```
 
 ---
 

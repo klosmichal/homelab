@@ -28,9 +28,13 @@ ps:
 logs *service:
   docker compose logs -f --tail=200 {{service}}
 
-# Run the backup script
+# Run the weekly backup now (as your user; needs scripts/setup-backup.sh once)
 backup:
   bash ./scripts/backup.sh
+
+# List backup snapshots, optionally by tag: just snapshots config|immich|data
+snapshots tag="":
+  set -a; source .env; set +a; "${RESTIC_BIN:-/usr/local/bin/restic-backup}" snapshots {{ if tag != "" { "--tag " + tag } else { "" } }}
 
 # Run the smoke test script
 check:

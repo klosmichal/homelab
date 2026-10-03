@@ -308,7 +308,8 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - ${MEDIA_ROOT}:/srv
+      - ${MEDIA_ROOT}:/srv/media
+      - ${USER_DATA_ROOT}:/srv/data
       - filebrowser_data:/config
       - filebrowser_db:/database
     networks:

@@ -48,7 +48,7 @@ Your device
 | Home Assistant | `ha.michalklos.com` | Home automation |
 | Zigbee2MQTT | `z2m.michalklos.com` | Zigbee devices via the SLZB-MR5U |
 | AdGuard Home | `dns.michalklos.com` | DNS + ad blocking |
-| FileBrowser | `files.michalklos.com` | Web file manager |
+| FileBrowser | `files.michalklos.com` | Web file manager — `/mnt/media` and `/mnt/data` |
 | Stirling PDF | `pdf.michalklos.com` | PDF tools |
 | Portainer | `portainer.michalklos.com` | Docker container management |
 | Seerr | `seerr.michalklos.com` | Media requests |
@@ -91,7 +91,8 @@ just stop              # stop everything
 just update            # pull new images and restart
 just ps                # container status
 just logs              # follow all logs
-just backup            # run restic backup now
+just backup            # run restic backup now (config, immich, data)
+just snapshots         # list backups; just snapshots config|immich|data
 just check             # smoke test all containers
 just verify            # full post-restart verification
 just diff-config       # show what differs between repo and runtime configs
@@ -129,4 +130,4 @@ re-tick shows up in `just diff-config` as `enabled: false`.
 - **Media stack:** Prowlarr, Radarr, Sonarr, Bazarr, Seerr — qBittorrent behind Gluetun (NordVPN WireGuard)
 - **Smart home:** Home Assistant, Zigbee2MQTT + Mosquitto, Matter server; SMLIGHT SLZB-MR5U as Zigbee coordinator and Thread border router over Ethernet
 - **Hardware acceleration:** Intel Quick Sync / VA-API + OpenVINO via `/dev/dri`
-- **Backups:** restic → USB disk, weekly cron
+- **Backups:** restic → 2 TB USB disk, Sunday 03:00 via cron.d, run as the login user; tagged `config` (appdata, `.env`, Docker volumes), `immich`, `data`

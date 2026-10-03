@@ -18,6 +18,7 @@ just update        # Pull latest images and restart
 just ps            # Container status
 just logs          # Follow all logs
 just backup        # Run restic backup manually
+just snapshots     # List restic snapshots (optionally: config | immich | data)
 just check         # Run healthcheck-smoke.sh
 just sync-config   # Copy configs from repo to runtime locations and restart affected containers
 ```
@@ -72,8 +73,9 @@ An SMLIGHT SLZB-MR5U on the LAN (Ethernet) carries both radios; nothing is passe
 
 Key env variable groups:
 - `HOST_*` — server identity and network (LAN IP: `192.168.10.10`)
-- `*_ROOT` — filesystem mount points (`APPDATA_ROOT=/srv/homelab`, `MEDIA_ROOT=/srv/data`)
+- `*_ROOT` — filesystem mount points (`APPDATA_ROOT=/srv/homelab`, `MEDIA_ROOT=/mnt/media` on the 8 TB HDD, `IMMICH_LIBRARY_ROOT=/srv/data/immich/library` and `USER_DATA_ROOT=/mnt/data` on the SSD). FileBrowser mounts `MEDIA_ROOT` and `USER_DATA_ROOT` as `media/` and `data/`; the backup disk is deliberately not exposed
 - `*_HOST` — service DNS names (`JELLYFIN_HOST=jellyfin.michalklos.com`, etc.)
+- `RESTIC_*`, `BACKUP_MOUNT_POINT` — backup repository, password, retention and the capability-enabled `RESTIC_BIN`
 - `MQTT_*`, `ZIGBEE_ADAPTER_URL` — broker credentials and the SLZB-MR5U's Zigbee radio (an IP, so Zigbee does not depend on AdGuard Home)
 - `PUID`/`PGID` — UID/GID for linuxserver.io containers (default `1000`)
 - `TZ=Europe/Warsaw`
@@ -84,7 +86,14 @@ Key env variable groups:
 
 ### Backup
 
-`scripts/backup.sh` dumps the Immich PostgreSQL database, then runs `restic backup` to `/mnt/backup-usb/restic`. Scheduled via cron: `0 3 * * 0` (Sunday 3 AM). Retention: 8 weekly + 6 monthly snapshots.
+`scripts/backup.sh` backs up to `/mnt/backup-usb/restic`, a 2 TB ext4 USB disk. It runs as the login user, never root: `RESTIC_BIN` (`/usr/local/bin/restic-backup`) is a restic copy with `cap_dac_read_search`, installed by `sudo bash scripts/setup-backup.sh`. That script must be re-run after every restic upgrade. It also installs `config/cron/homelab-backup` to `/etc/cron.d/` (Sunday 03:00).
+
+Each run writes three tagged snapshots:
+- `config` — `APPDATA_ROOT`, the repo checkout including `.env`, and the compose-managed Docker volumes except `immich_pgdata` and `immich_model_cache`. The stack, except Tailscale, is stopped for this phase so SQLite databases are consistent; an `EXIT` trap restarts whatever was running
+- `immich` — `/srv/data/immich`, which includes `db-dump/immich-postgres.sql` (`pg_dumpall`, taken before the stack stops)
+- `data` — `USER_DATA_ROOT`
+
+Retention is 8 weekly + 6 monthly, grouped by host and tag. A new compose named volume must be added to the `config` phase by hand. Restore steps are in `scripts/restore-notes.sh`.
 
 ## Key docs
 

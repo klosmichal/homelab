@@ -1,0 +1,7 @@
+# Weekly restic backup — installed to /etc/cron.d/homelab-backup by
+# scripts/setup-backup.sh, which fills in @USER@ and @ROOT_DIR@.
+# Runs as the login user; see scripts/backup.sh.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 3 * * 0 @USER@ /bin/bash @ROOT_DIR@/scripts/backup.sh >> /var/log/homelab-backup.log 2>&1

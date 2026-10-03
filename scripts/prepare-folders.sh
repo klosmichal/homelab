@@ -46,6 +46,14 @@ sudo chown -R "${PUID}:${PGID}" "$MEDIA_ROOT"
 sudo mkdir -p "$IMMICH_LIBRARY_ROOT"
 sudo chown -R "${PUID}:${PGID}" "$IMMICH_LIBRARY_ROOT"
 
+# Immich DB dump written by scripts/backup.sh, which runs as the login user
+sudo mkdir -p "$(dirname "$IMMICH_LIBRARY_ROOT")/db-dump"
+sudo chown "${PUID}:${PGID}" "$(dirname "$IMMICH_LIBRARY_ROOT")/db-dump"
+
+# Personal files on the SSD, browsable in FileBrowser (runs as PUID)
+sudo mkdir -p "$USER_DATA_ROOT"
+sudo chown "${PUID}:${PGID}" "$USER_DATA_ROOT"
+
 # Config files — copy only on first run; use just sync-config to re-apply
 if [[ ! -f "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml" ]]; then
   sudo cp "$ROOT_DIR/config/adguardhome/AdGuardHome.yaml" "$APPDATA_ROOT/adguardhome/conf/AdGuardHome.yaml"
