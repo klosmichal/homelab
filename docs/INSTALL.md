@@ -414,7 +414,7 @@ Each run of `scripts/backup.sh` makes three snapshots, one per tag:
 
 | Tag | Contents | Stack |
 |---|---|---|
-| `config` | `/srv/homelab`, this repo including `.env`, and the Docker volumes `letsencrypt`, `jellyfin_config`, `portainer_data`, `stirling_data`, `filebrowser_data`, `filebrowser_db`. Logs, AdGuard's query log, Jellyfin's cache/transcodes and the stray `qbittorrent/config/Downloads` are excluded. | Stopped for 1–2 minutes, except Tailscale, so SQLite databases are consistent. DNS falls back to 1.1.1.1 meanwhile |
+| `config` | `/srv/homelab`, this repo including `.env`, and the Docker volumes `letsencrypt`, `jellyfin_config`, `portainer_data`, `stirling_data`, `filebrowser_data`, `filebrowser_db`. Logs, AdGuard's query log and Jellyfin's cache/transcodes are excluded. | Stopped for 1–2 minutes, except Tailscale, so SQLite databases are consistent. DNS falls back to 1.1.1.1 meanwhile |
 | `immich` | `/srv/data/immich`: the photo library plus `db-dump/immich-postgres.sql`, a `pg_dumpall` taken first | Running |
 | `data` | `/mnt/data` | Running |
 

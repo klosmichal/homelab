@@ -93,7 +93,6 @@ log "Stopping stack"
 [[ -n "$running" ]] && docker compose stop $running
 
 snapshot config \
-  --exclude "$APPDATA_ROOT/qbittorrent/config/Downloads" \
   --exclude "$APPDATA_ROOT/adguardhome/work/data/querylog.json*" \
   --exclude "$VOLUMES/${PROJECT}_jellyfin_config/_data/cache" \
   --exclude "$VOLUMES/${PROJECT}_jellyfin_config/_data/log" \
