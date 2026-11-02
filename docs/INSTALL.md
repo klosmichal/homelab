@@ -64,6 +64,9 @@ Open `~/homelab/.env` and fill in all values:
 | `CF_DNS_API_TOKEN` | Cloudflare API token from step 4b |
 | `ACME_EMAIL` | Your email for Let's Encrypt notifications |
 | `IMMICH_DB_PASSWORD` | Strong random password |
+| `NORISH_DB_PASSWORD` | `openssl rand -hex 24` — hex only, it is embedded in a `postgres://` URL |
+| `NORISH_MASTER_KEY` | `openssl rand -base64 32` — encrypts secrets Norish stores (AI keys, OAuth settings); changing it later makes them unreadable |
+| `NORISH_OBSCURA_TOKEN` | `openssl rand -hex 32` — shared by `norish` and `norish-obscura` |
 | `RESTIC_PASSWORD` | Strong random passphrase for backup encryption |
 | `SAMBA_PASSWORD` | Samba share password |
 | `TAILSCALE_AUTHKEY` | Optional — leave empty to authenticate manually |
@@ -289,6 +292,11 @@ Open `https://jellyfin.michalklos.com` → follow the setup wizard → in **Dash
 ### Immich
 Open `https://immich.michalklos.com` → create admin account. Hardware ML acceleration (OpenVINO) is pre-configured via the `immich-machine-learning` container.
 
+### Norish
+Open `https://recipes.michalklos.com` → sign up with email and password. The first account becomes the admin, and registration closes after that sign-in. AI import, extra sign-in providers and the page renderers are configured in **Settings → Admin**. Obscura is already seeded from `OBSCURA_ENDPOINT`, so importing from a recipe URL works without further setup.
+
+Uploads live in `${APPDATA_ROOT}/norish/uploads` and the database in `${APPDATA_ROOT}/norish/postgres`, both covered by the weekly `config` snapshot.
+
 ### Home Assistant
 Home Assistant runs in `network_mode: host` so it can access Bluetooth, mDNS, and other LAN protocols. Because of this it can't join the Docker `proxy` network, so Traefik reaches it via `host.docker.internal` (mapped to the Docker bridge gateway via `extra_hosts: host-gateway` on the Traefik service) rather than by container name.
 
@@ -414,7 +422,7 @@ Each run of `scripts/backup.sh` makes three snapshots, one per tag:
 
 | Tag | Contents | Stack |
 |---|---|---|
-| `config` | `/srv/homelab`, this repo including `.env`, and the Docker volumes `letsencrypt`, `jellyfin_config`, `portainer_data`, `stirling_data`, `filebrowser_data`, `filebrowser_db`. Logs, AdGuard's query log and Jellyfin's cache/transcodes are excluded. | Stopped for 1–2 minutes, except Tailscale, so SQLite databases are consistent. DNS falls back to 1.1.1.1 meanwhile |
+| `config` | `/srv/homelab` (including Norish's uploads and Postgres data), this repo including `.env`, and the Docker volumes `letsencrypt`, `jellyfin_config`, `portainer_data`, `stirling_data`, `filebrowser_data`, `filebrowser_db`. Logs, AdGuard's query log and Jellyfin's cache/transcodes are excluded. | Stopped for 1–2 minutes, except Tailscale, so SQLite databases and Norish's Postgres are consistent. DNS falls back to 1.1.1.1 meanwhile |
 | `immich` | `/srv/data/immich`: the photo library plus `db-dump/immich-postgres.sql`, a `pg_dumpall` taken first | Running |
 | `data` | `/mnt/data` | Running |
 

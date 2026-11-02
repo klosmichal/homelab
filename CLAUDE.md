@@ -34,7 +34,7 @@ Scripts are in `scripts/` — run directly as `sudo bash scripts/install-host.sh
 
 ### Single-file stack
 
-`docker-compose.yml` defines all 25 services. Two networks:
+`docker-compose.yml` defines all 29 services. Two networks:
 - `proxy` — services exposed via Traefik (have `traefik.*` labels)
 - `internal` — databases, caches and the MQTT broker (never touch Traefik)
 
@@ -77,6 +77,7 @@ Key env variable groups:
 - `*_HOST` — service DNS names (`JELLYFIN_HOST=jellyfin.michalklos.com`, etc.)
 - `RESTIC_*`, `BACKUP_MOUNT_POINT` — backup repository, password, retention and the capability-enabled `RESTIC_BIN`
 - `MQTT_*`, `ZIGBEE_ADAPTER_URL` — broker credentials and the SLZB-MR5U's Zigbee radio (an IP, so Zigbee does not depend on AdGuard Home)
+- `NORISH_*` — Norish's DB password (hex only, it is embedded in a `postgres://` URL), `MASTER_KEY` (encrypts stored secrets; never rotate it) and the Obscura CDP token shared by `norish` and `norish-obscura`. Norish's uploads and Postgres data are bind mounts under `${APPDATA_ROOT}/norish/`, so the `config` backup covers them
 - `PUID`/`PGID` — UID/GID for linuxserver.io containers (default `1000`)
 - `TZ=Europe/Warsaw`
 
@@ -89,7 +90,7 @@ Key env variable groups:
 `scripts/backup.sh` backs up to `/mnt/backup-usb/restic`, a 2 TB ext4 USB disk. It runs as the login user, never root: `RESTIC_BIN` (`/usr/local/bin/restic-backup`) is a restic copy with `cap_dac_read_search`, installed by `sudo bash scripts/setup-backup.sh`. That script must be re-run after every restic upgrade. It also installs `config/cron/homelab-backup` to `/etc/cron.d/` (Sunday 03:00).
 
 Each run writes three tagged snapshots:
-- `config` — `APPDATA_ROOT`, the repo checkout including `.env`, and the compose-managed Docker volumes except `immich_pgdata` and `immich_model_cache`. The stack, except Tailscale, is stopped for this phase so SQLite databases are consistent; an `EXIT` trap restarts whatever was running
+- `config` — `APPDATA_ROOT`, the repo checkout including `.env`, and the compose-managed Docker volumes except `immich_pgdata` and `immich_model_cache`. The stack, except Tailscale, is stopped for this phase so SQLite databases and Norish's Postgres data directory are consistent; an `EXIT` trap restarts whatever was running
 - `immich` — `/srv/data/immich`, which includes `db-dump/immich-postgres.sql` (`pg_dumpall`, taken before the stack stops)
 - `data` — `USER_DATA_ROOT`
 

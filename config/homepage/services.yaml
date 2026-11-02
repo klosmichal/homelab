@@ -56,6 +56,11 @@
           enableBlocks: true
           enableNowPlaying: true
 
+    - Norish:
+        icon: mdi-chef-hat
+        href: https://recipes.michalklos.com
+        description: Recipes & meal planning
+
     - FileBrowser:
         icon: filebrowser.svg
         href: https://files.michalklos.com

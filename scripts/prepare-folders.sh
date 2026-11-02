@@ -26,7 +26,9 @@ sudo mkdir -p \
   "$APPDATA_ROOT/recyclarr/config" \
   "$APPDATA_ROOT/mosquitto/data" \
   "$APPDATA_ROOT/zigbee2mqtt/data" \
-  "$APPDATA_ROOT/matter-server"
+  "$APPDATA_ROOT/matter-server" \
+  "$APPDATA_ROOT/norish/uploads" \
+  "$APPDATA_ROOT/norish/postgres"
 
 sudo chown -R 1000:1000 "$APPDATA_ROOT/seerr"
 # matter-server's image always runs as UID 1000; zigbee2mqtt runs as PUID

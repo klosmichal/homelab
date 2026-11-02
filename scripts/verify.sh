@@ -56,6 +56,7 @@ containers=(
   mosquitto zigbee2mqtt matter-server
   filebrowser samba
   immich_server immich_machine_learning immich_redis immich_postgres
+  norish norish_obscura norish_valkey norish_postgres
   portainer stirling_pdf
   gluetun qbittorrent
   prowlarr radarr sonarr bazarr seerr
@@ -93,6 +94,7 @@ echo "4. Public routes"
 route_hosts=(
   "${JELLYFIN_HOST:-jellyfin.$LOCAL_DNS_ZONE}"
   "${IMMICH_HOST:-immich.$LOCAL_DNS_ZONE}"
+  "${NORISH_HOST:-recipes.$LOCAL_DNS_ZONE}"
   "${HOMEPAGE_HOST:-home.$LOCAL_DNS_ZONE}"
   "${RADARR_HOST:-radarr.$LOCAL_DNS_ZONE}"
   "${SONARR_HOST:-sonarr.$LOCAL_DNS_ZONE}"

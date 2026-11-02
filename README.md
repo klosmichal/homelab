@@ -15,6 +15,7 @@ Your device
     │    ├── home.michalklos.com      (Homepage)               │
     │    ├── jellyfin.michalklos.com  (Jellyfin)               │
     │    ├── immich.michalklos.com    (Immich)                 │
+    │    ├── recipes.michalklos.com   (Norish)                 │
     │    ├── ha.michalklos.com        (Home Assistant)         │
     │    ├── z2m.michalklos.com       (Zigbee2MQTT)            │
     │    ├── dns.michalklos.com       (AdGuard Home)           │
@@ -45,6 +46,7 @@ Your device
 | Homepage | `home.michalklos.com` | Dashboard |
 | Jellyfin | `jellyfin.michalklos.com` | Media streaming (Intel QSV) |
 | Immich | `immich.michalklos.com` | Photo management (OpenVINO) |
+| Norish | `recipes.michalklos.com` | Recipes, meal planning, grocery lists |
 | Home Assistant | `ha.michalklos.com` | Home automation |
 | Zigbee2MQTT | `z2m.michalklos.com` | Zigbee devices via the SLZB-MR5U |
 | AdGuard Home | `dns.michalklos.com` | DNS + ad blocking |
@@ -68,6 +70,7 @@ No web UI of their own:
 | Recyclarr | Syncs TRaSH Guides quality profiles into Radarr and Sonarr |
 | Tailscale | Mesh VPN for remote access, advertises `192.168.10.0/24` |
 | Immich Postgres / Redis / ML | Immich's database, cache, and OpenVINO inference |
+| Norish Postgres / Valkey / Obscura | Norish's database, event and job queue, and the headless browser that renders pages for URL imports |
 | Mosquitto | MQTT broker between Zigbee2MQTT and Home Assistant, loopback-only (`127.0.0.1:1883`) |
 | Matter Server | Matter controller for Home Assistant (`ws://localhost:5580/ws`), host networking |
 
@@ -128,6 +131,7 @@ re-tick shows up in `just diff-config` as `enabled: false`.
 - **DNS:** AdGuard Home — local rewrite `*.michalklos.com → 192.168.10.10`, Cloudflare upstreams with Quad9 fallback, HaGeZi Pro + Threat Intelligence Feeds, LG TV lockdown lists
 - **Remote access:** Tailscale (VPN)
 - **Media stack:** Prowlarr, Radarr, Sonarr, Bazarr, Seerr — qBittorrent behind Gluetun (NordVPN WireGuard)
+- **Household:** Norish (recipes, meal calendar, grocery lists) with its own Postgres, Valkey and Obscura
 - **Smart home:** Home Assistant, Zigbee2MQTT + Mosquitto, Matter server; SMLIGHT SLZB-MR5U as Zigbee coordinator and Thread border router over Ethernet
 - **Hardware acceleration:** Intel Quick Sync / VA-API + OpenVINO via `/dev/dri`
 - **Backups:** restic → 2 TB USB disk, Sunday 03:00 via cron.d, run as the login user; tagged `config` (appdata, `.env`, Docker volumes), `immich`, `data`

@@ -397,6 +397,93 @@ services:
     networks:
       - internal
 
+  # Recipes, meal plan and grocery lists. restart: always rather than
+  # unless-stopped: the "restart server" button in Settings → Admin exits the
+  # process and relies on Docker to bring it back. The image starts as root only
+  # to chown the uploads folder, then drops to UID 1000. Its own HEALTHCHECK
+  # probes /api/v1/health/live. The first account to sign up becomes the admin;
+  # registration closes after that.
+  norish:
+    image: norishapp/norish:latest
+    container_name: norish
+    restart: always
+    depends_on:
+      norish-postgres:
+        condition: service_healthy
+      norish-valkey:
+        condition: service_healthy
+      norish-obscura:
+        condition: service_started
+    environment:
+      - TZ=${TZ}
+      - AUTH_URL=https://${NORISH_HOST}
+      - DATABASE_URL=postgres://norish:${NORISH_DB_PASSWORD}@norish-postgres:5432/norish
+      - MASTER_KEY=${NORISH_MASTER_KEY}
+      - VALKEY_URL=valkey://norish-valkey:6379
+      - OBSCURA_ENDPOINT=ws://norish-obscura:9222
+      - OBSCURA_CDP_TOKEN=${NORISH_OBSCURA_TOKEN}
+      - UPLOADS_DIR=/app/uploads
+    volumes:
+      - ${APPDATA_ROOT}/norish/uploads:/app/uploads
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.norish.rule=Host(`${NORISH_HOST}`)
+      - traefik.http.routers.norish.entrypoints=websecure
+      - traefik.http.routers.norish.tls.certresolver=letsencrypt
+      - traefik.http.services.norish.loadbalancer.server.port=3000
+      - traefik.docker.network=proxy
+
+  # Headless browser that renders pages for Norish's URL imports. No port
+  # published: anyone who can reach its CDP server can drive the browser.
+  # Pinned to the build Norish ships (docker/obscura/pin.env upstream).
+  norish-obscura:
+    image: norishapp/obscura:0.2.5-norish.1
+    container_name: norish_obscura
+    restart: unless-stopped
+    environment:
+      - OBSCURA_CDP_TOKEN=${NORISH_OBSCURA_TOKEN}
+    networks:
+      - internal
+
+  # Holds only events and the job queue, so no volume, like immich-redis.
+  norish-valkey:
+    image: valkey/valkey:9
+    container_name: norish_valkey
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  # Data directory under APPDATA_ROOT rather than a named volume, so the config
+  # backup picks it up; the stack is stopped for that phase, so the copy is
+  # consistent without a dump.
+  norish-postgres:
+    image: postgres:17-alpine
+    container_name: norish_postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U norish -d norish"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    environment:
+      - POSTGRES_USER=norish
+      - POSTGRES_PASSWORD=${NORISH_DB_PASSWORD}
+      - POSTGRES_DB=norish
+    volumes:
+      - ${APPDATA_ROOT}/norish/postgres:/var/lib/postgresql/data
+    networks:
+      - internal
+
   portainer:
     image: portainer/portainer-ce:latest
     container_name: portainer

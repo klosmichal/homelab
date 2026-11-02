@@ -7,7 +7,7 @@
 # Three snapshots per run, one per tag, so each area restores on its own:
 #   config — APPDATA_ROOT, this repo (incl. .env), compose-managed Docker volumes;
 #            taken with the stack (except Tailscale) stopped so SQLite
-#            databases are consistent
+#            databases and Norish's Postgres are consistent
 #   immich — photo library + a pg_dumpall of the Immich database
 #   data   — USER_DATA_ROOT
 set -euo pipefail

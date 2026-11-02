@@ -8,6 +8,7 @@ for c in \
   mosquitto zigbee2mqtt matter-server \
   filebrowser samba \
   immich_server immich_machine_learning immich_redis immich_postgres \
+  norish norish_obscura norish_valkey norish_postgres \
   portainer stirling_pdf \
   gluetun qbittorrent \
   prowlarr radarr sonarr bazarr seerr; do
