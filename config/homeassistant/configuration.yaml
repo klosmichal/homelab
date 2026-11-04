@@ -2,6 +2,12 @@
 # Loads default set of integrations. Do not remove.
 default_config:
 
+# Repo-owned YAML lives here. automations.yaml / scenes.yaml / scripts.yaml are
+# pull-only in scripts/config-sync.sh because the HA UI rewrites them, so
+# anything that should be version-controlled and pushed goes into packages/.
+homeassistant:
+  packages: !include_dir_named packages
+
 logger:
   default: info
   logs:

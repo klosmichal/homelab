@@ -111,7 +111,9 @@ Some apps rewrite their own config at runtime — AdGuard Home on every web UI
 change, qBittorrent and Home Assistant likewise — so the runtime copy drifts
 ahead of the repo. Always read the diff before answering the prompt; `pull-config`
 is how you capture those changes back. Home Assistant's `automations.yaml`,
-`scenes.yaml` and `scripts.yaml` are pull-only and never overwritten.
+`scenes.yaml` and `scripts.yaml` are pull-only and never overwritten — anything
+that should be version-controlled lives in `config/homeassistant/packages/`
+instead, which pushes normally but cannot be edited from the HA UI.
 
 Run both with `sudo`, or answer the password prompt: the runtime
 `AdGuardHome.yaml` is root-owned.

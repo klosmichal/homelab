@@ -56,6 +56,13 @@ FILES=(
   "config/homeassistant/scripts.yaml|homeassistant/config/scripts.yaml|pull"
 )
 
+# Home Assistant packages are repo-owned: the UI never writes them, so unlike
+# automations.yaml and friends they are safe to push.
+for f in "$REPO"/config/homeassistant/packages/*.yaml; do
+  [ -f "$f" ] || continue
+  FILES+=("config/homeassistant/packages/$(basename "$f")|homeassistant/config/packages/$(basename "$f")|both")
+done
+
 # Homepage is a directory of yaml/css/js; take whatever the repo holds.
 for f in "$REPO"/config/homepage/*; do
   [ -f "$f" ] || continue

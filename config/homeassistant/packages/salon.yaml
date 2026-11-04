@@ -1,0 +1,203 @@
+# Salon: the TRV regulates on the Matter room sensor, not on its own body.
+#
+# The Sonoff TRVZB sits on the radiator, so its internal sensor reads the pipe
+# as much as the room: measured +3.5 degC mean offset against the room sensor,
+# peaking at +6.1 degC, and the offset grows with radiator temperature. A fixed
+# local_temperature_calibration therefore cannot correct it. Instead the valve
+# is switched to `external` and Home Assistant feeds it the room reading, which
+# makes the setpoint on climate.termostat_salon a real room temperature.
+#
+# Zigbee2MQTT does not synchronise external_temperature_input by itself (see the
+# property description in the TRVZB definition) - that is this package's job.
+#
+# This lives in a package rather than in automations.yaml/scenes.yaml because
+# those two are pull-only in scripts/config-sync.sh: the HA UI owns them, so a
+# push would overwrite whatever the UI last saved. The cost is that these
+# automations and scenes are not editable in the UI, only here.
+
+automation:
+  # The TRV is battery powered, so writes are throttled: only when the room
+  # reading actually moves by 0.1 degC, plus a half-hourly heartbeat so a valve
+  # that rebooted and lost the value cannot keep regulating on a stale one.
+  - id: salon_trv_feed_external_temperature
+    alias: "Salon - podaj temperaturę z czujnika do termostatu"
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: state
+        entity_id: sensor.salon_czujnik_salon_temperature
+        id: sensor
+      - trigger: time_pattern
+        minutes: "/30"
+        id: heartbeat
+      - trigger: homeassistant
+        event: start
+        id: heartbeat
+    conditions:
+      # external_temperature_input accepts 0 .. 99.9; a sensor that is
+      # unavailable or out of range must never be forwarded.
+      - condition: template
+        value_template: >-
+          {% set room = states('sensor.salon_czujnik_salon_temperature') | float(-1) %}
+          {% set sent = states('number.termostat_salon_external_temperature_input') | float(-1) %}
+          {{ 0 <= room <= 99.9
+             and (trigger.id == 'heartbeat' or (room | round(1)) != (sent | round(1))) }}
+    actions:
+      - action: number.set_value
+        target:
+          entity_id: number.termostat_salon_external_temperature_input
+        data:
+          value: "{{ states('sensor.salon_czujnik_salon_temperature') | float | round(1) }}"
+
+  # Without this, a dead room sensor leaves the valve regulating on a frozen
+  # value forever - either permanently shut or permanently open.
+  - id: salon_trv_sensor_failed
+    alias: "Salon - awaria czujnika: termostat wraca na sensor wewnętrzny"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: sensor.salon_czujnik_salon_temperature
+        to:
+          - unavailable
+          - unknown
+        for: "01:00:00"
+    actions:
+      - action: select.select_option
+        target:
+          entity_id: select.termostat_salon_temperature_sensor_select
+        data:
+          option: internal
+      # 24 degC on the internal sensor is roughly 20.5 degC in the room at the
+      # measured mean offset - deliberately conservative, not comfortable.
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.termostat_salon
+        data:
+          temperature: 24
+      - action: persistent_notification.create
+        data:
+          title: Salon - czujnik temperatury nie odpowiada
+          message: >-
+            Termostat salon przełączony na sensor wewnętrzny (setpoint 24 degC
+            ~ 20.5 degC w pomieszczeniu). Wróci na czujnik automatycznie.
+          notification_id: salon_trv_sensor_failed
+
+  - id: salon_trv_sensor_restored
+    alias: "Salon - czujnik wrócił: termostat znów na czujniku pokojowym"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: sensor.salon_czujnik_salon_temperature
+        from:
+          - unavailable
+          - unknown
+    conditions:
+      - condition: state
+        entity_id: select.termostat_salon_temperature_sensor_select
+        state: internal
+      - condition: template
+        value_template: >-
+          {{ 0 <= states('sensor.salon_czujnik_salon_temperature') | float(-1) <= 99.9 }}
+    actions:
+      # Order matters: push a fresh reading before handing control back, so the
+      # valve never regulates on the value it was left with an hour ago.
+      - action: number.set_value
+        target:
+          entity_id: number.termostat_salon_external_temperature_input
+        data:
+          value: "{{ states('sensor.salon_czujnik_salon_temperature') | float | round(1) }}"
+      - delay: "00:00:05"
+      - action: select.select_option
+        target:
+          entity_id: select.termostat_salon_temperature_sensor_select
+        data:
+          option: external
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.termostat_salon
+        data:
+          temperature: 21
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: salon_trv_sensor_failed
+
+# Setpoints below are real room temperatures, which only holds while the valve
+# is on the external sensor. Measured free-cooling in this room is 0.038 degC/h
+# (0.02-0.07) at 12-17 K indoor-outdoor difference, against a 0.5-1.1 degC/h
+# reheat rate - so a night setback deeper than ~1 degC is unreachable within a
+# night, and recovery is never the expensive part. 21 degC is the baseline that
+# actually saves (~5% of heat loss per degC off the current 24.5-25 degC).
+scene:
+  - id: salon_dzien
+    name: Salon - dzień
+    icon: mdi:weather-sunny
+    entities:
+      light.zyrandol_salon:
+        state: "on"
+        brightness: 255
+        color_temp_kelvin: 4000
+      light.kinkiet_salon:
+        state: "off"
+      climate.termostat_salon:
+        state: heat
+        temperature: 21
+
+  - id: salon_wieczor
+    name: Salon - wieczór
+    icon: mdi:weather-night
+    entities:
+      light.zyrandol_salon:
+        state: "on"
+        brightness: 140
+        color_temp_kelvin: 2700
+      light.kinkiet_salon:
+        state: "on"
+        brightness: 180
+        color_temp_kelvin: 2400
+      climate.termostat_salon:
+        state: heat
+        temperature: 21
+
+  - id: salon_film
+    name: Salon - film
+    icon: mdi:movie-open
+    entities:
+      light.zyrandol_salon:
+        state: "off"
+      light.kinkiet_salon:
+        state: "on"
+        brightness: 60
+        color_temp_kelvin: 2200
+      climate.termostat_salon:
+        state: heat
+        temperature: 21
+
+  # Reachable drop over a night is ~0.5 degC at best, so 20 degC is the honest
+  # setback: it shuts the valve for the night without pretending to achieve more.
+  - id: salon_noc
+    name: Salon - noc
+    icon: mdi:bed
+    entities:
+      light.zyrandol_salon:
+        state: "off"
+      light.kinkiet_salon:
+        state: "off"
+      climate.termostat_salon:
+        state: heat
+        temperature: 20
+
+  # At 0.038 degC/h the room needs ~3 days to reach 18 degC, so in practice this
+  # just keeps the valve shut for the whole trip - which is the point.
+  - id: salon_wyjazd
+    name: Salon - wyjazd
+    icon: mdi:airplane
+    entities:
+      light.zyrandol_salon:
+        state: "off"
+      light.kinkiet_salon:
+        state: "off"
+      climate.klima:
+        state: "off"
+      climate.termostat_salon:
+        state: heat
+        temperature: 18

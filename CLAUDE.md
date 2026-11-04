@@ -65,6 +65,12 @@ An SMLIGHT SLZB-MR5U on the LAN (Ethernet) carries both radios; nothing is passe
 - **Thread:** the OpenThread border router runs on the SLZB itself (mode "Thread + OTBR running on device", REST API on `:8080`); there is no OTBR container. It advertises the route to the Thread mesh by IPv6 router advertisement, so the host must accept RAs on `HOST_LAN_INTERFACE` and keep IPv6 forwarding off. `just verify` warns when the route is missing
 - **Matter:** `matter-server` (matter.js) listens on `127.0.0.1:5580` only. `scripts/setup-matter-host.sh` (run by `install-host.sh`) opens UFW to `fd00::/8` and `fe80::/10` on the LAN interface, raises the UDP conntrack timeout to 3600 s for sleepy devices, and allows unprivileged ping
 
+### Home Assistant YAML
+
+`configuration.yaml` is the only HA file the repo owns outright. `automations.yaml`, `scenes.yaml` and `scripts.yaml` are pull-only in `config-sync.sh` because the HA UI rewrites them, so repo-owned automations and scenes go into `config/homeassistant/packages/*.yaml` instead, loaded by `homeassistant: packages: !include_dir_named packages`. Those files push like any other config; the tradeoff is that they are not editable from the UI.
+
+- `packages/salon.yaml` — the Sonoff TRVZB in the living room regulates on `sensor.salon_czujnik_salon_temperature` (Matter) rather than its own body sensor, which measures +3.5 °C hot on average and up to +6.1 °C when the radiator is warm, so a fixed `local_temperature_calibration` cannot correct it. `temperature_sensor_select` is set to `external` on the device; an automation mirrors the room reading into `number.termostat_salon_external_temperature_input` (Zigbee2MQTT does not synchronise that property itself), throttled to 0.1 °C changes plus a half-hourly heartbeat because the valve runs on batteries. Two further automations fall back to the internal sensor if the room sensor goes unavailable for an hour, and hand control back when it returns. With `external` selected, `climate.termostat_salon` setpoints are real room temperatures — the living-room scenes in the same file depend on that
+
 ### Configuration
 
 - `env.production.example` — production values for this specific hardware
