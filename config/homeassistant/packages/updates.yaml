@@ -18,7 +18,7 @@ automation:
         at: "10:00:00"
     conditions:
       - condition: time
-        weekday: sat
+        weekday: sun
       - condition: template
         value_template: >-
           {{ states.update | selectattr('state', 'eq', 'on') | list | count > 0 }}
