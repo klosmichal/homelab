@@ -15,6 +15,31 @@
 # push would overwrite whatever the UI last saved. The cost is that these
 # automations and scenes are not editable in the UI, only here.
 
+# The ALPSTUGA can hang its measurements while its Thread/Matter stack keeps
+# answering: it stays `available`, the subscription stays healthy, and every
+# reading freezes at its last value until the device is power cycled. Seen on
+# firmware 1.0.26 on 2026-11-11, and reported by others on the same firmware.
+# An unavailability check never fires for that, so staleness is detected here.
+#
+# Temperature, humidity and CO2 normally change within minutes; across eight
+# days of history the longest stretch with none of the three changing was
+# 62 min, so 2 h has a safe margin. last_changed resets on an HA restart, which
+# only delays detection by one restart. Unavailable readings are skipped:
+# that case belongs to the unavailability trigger below, not to this sensor.
+template:
+  - binary_sensor:
+      - name: Salon czujnik zamrożony
+        unique_id: salon_czujnik_salon_frozen
+        device_class: problem
+        icon: mdi:snowflake-alert
+        state: >-
+          {% set changed = expand('sensor.salon_czujnik_salon_temperature',
+                                  'sensor.salon_czujnik_salon_humidity',
+                                  'sensor.salon_czujnik_salon_carbon_dioxide')
+             | rejectattr('state', 'in', ['unavailable', 'unknown'])
+             | map(attribute='last_changed') | list %}
+          {{ changed | count > 0 and now() - (changed | max) > timedelta(hours=2) }}
+
 automation:
   # The TRV is battery powered, so writes are throttled: only when the room
   # reading actually moves by 0.1 degC, plus a half-hourly heartbeat so a valve
@@ -35,12 +60,13 @@ automation:
         id: heartbeat
     conditions:
       # external_temperature_input accepts 0 .. 99.9; a sensor that is
-      # unavailable or out of range must never be forwarded.
+      # unavailable, out of range or frozen must never be forwarded.
       - condition: template
         value_template: >-
           {% set room = states('sensor.salon_czujnik_salon_temperature') | float(-1) %}
           {% set sent = states('number.termostat_salon_external_temperature_input') | float(-1) %}
           {{ 0 <= room <= 99.9
+             and not is_state('binary_sensor.salon_czujnik_zamrozony', 'on')
              and (trigger.id == 'heartbeat' or (room | round(1)) != (sent | round(1))) }}
     actions:
       - action: number.set_value
@@ -50,7 +76,9 @@ automation:
           value: "{{ states('sensor.salon_czujnik_salon_temperature') | float | round(1) }}"
 
   # Without this, a dead room sensor leaves the valve regulating on a frozen
-  # value forever - either permanently shut or permanently open.
+  # value forever - either permanently shut or permanently open. "Dead" is
+  # either unavailable for an hour, or available but frozen (see the template
+  # binary sensor above).
   - id: salon_trv_sensor_failed
     alias: "Salon - awaria czujnika: termostat wraca na sensor wewnętrzny"
     mode: single
@@ -61,6 +89,20 @@ automation:
           - unavailable
           - unknown
         for: "01:00:00"
+        id: unavailable
+      - trigger: state
+        entity_id: binary_sensor.salon_czujnik_zamrozony
+        to: "on"
+        id: frozen
+    conditions:
+      # Both triggers can fire for one outage; act (and notify) only once.
+      - condition: state
+        entity_id: select.termostat_salon_temperature_sensor_select
+        state: external
+    variables:
+      reason: >-
+        {{ 'odczyty stoją w miejscu od ponad 2 h - wyłącz i włącz zasilanie czujnika (USB-C)'
+           if trigger.id == 'frozen' else 'nie odpowiada od godziny' }}
     actions:
       - action: select.select_option
         target:
@@ -76,12 +118,24 @@ automation:
           temperature: 24
       - action: persistent_notification.create
         data:
-          title: Salon - czujnik temperatury nie odpowiada
+          title: Salon - czujnik temperatury nie działa
           message: >-
-            Termostat salon przełączony na sensor wewnętrzny (setpoint 24 degC
-            ~ 20.5 degC w pomieszczeniu). Wróci na czujnik automatycznie.
+            Czujnik salon {{ reason }}. Termostat salon przełączony na sensor
+            wewnętrzny (setpoint 24 degC ~ 20.5 degC w pomieszczeniu). Wróci na
+            czujnik automatycznie.
           notification_id: salon_trv_sensor_failed
+      - action: notify.mobile_app_iphone_michal
+        data:
+          title: Salon - czujnik temperatury nie działa
+          message: >-
+            Czujnik {{ reason }}. Termostat grzeje teraz według własnego
+            czujnika (~20.5 degC w pokoju).
+          data:
+            push:
+              interruption-level: time-sensitive
 
+  # Triggers on the sensor coming back from unavailable (power cycle, Thread
+  # outage) and on a frozen sensor that starts changing again.
   - id: salon_trv_sensor_restored
     alias: "Salon - czujnik wrócił: termostat znów na czujniku pokojowym"
     mode: single
@@ -91,10 +145,17 @@ automation:
         from:
           - unavailable
           - unknown
+      - trigger: state
+        entity_id: binary_sensor.salon_czujnik_zamrozony
+        from: "on"
+        to: "off"
     conditions:
       - condition: state
         entity_id: select.termostat_salon_temperature_sensor_select
         state: internal
+      - condition: state
+        entity_id: binary_sensor.salon_czujnik_zamrozony
+        state: "off"
       - condition: template
         value_template: >-
           {{ 0 <= states('sensor.salon_czujnik_salon_temperature') | float(-1) <= 99.9 }}
@@ -120,6 +181,12 @@ automation:
       - action: persistent_notification.dismiss
         data:
           notification_id: salon_trv_sensor_failed
+      - action: notify.mobile_app_iphone_michal
+        data:
+          title: Salon - czujnik znów działa
+          message: >-
+            Termostat salon wrócił na czujnik pokojowy
+            ({{ states('sensor.salon_czujnik_salon_temperature') }} degC), setpoint 21 degC.
 
 # Setpoints below are real room temperatures, which only holds while the valve
 # is on the external sensor. Measured free-cooling in this room is 0.038 degC/h

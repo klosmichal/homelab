@@ -1,0 +1,35 @@
+# Weekly push listing every pending update Home Assistant knows about: Matter
+# device firmware (matter-server checks the CSA DCL), Zigbee firmware via
+# Zigbee2MQTT, the SLZB-MR5U, and HACS integrations and cards.
+#
+# Nothing is installed automatically. Device firmware can change how a device
+# reports (the salon TRV regulation in salon.yaml depends on exact Zigbee2MQTT
+# properties), and an OTA to a battery device costs a noticeable share of its
+# battery, so installing stays a deliberate tap in Settings -> Updates. Docker
+# images, including Home Assistant and matter-server themselves, are not
+# update entities here: those go through `just update`.
+
+automation:
+  - id: updates_weekly_digest
+    alias: "Aktualizacje - tygodniowe podsumowanie"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "10:00:00"
+    conditions:
+      - condition: time
+        weekday: sat
+      - condition: template
+        value_template: >-
+          {{ states.update | selectattr('state', 'eq', 'on') | list | count > 0 }}
+    actions:
+      - action: notify.mobile_app_iphone_michal
+        data:
+          title: >-
+            Dostępne aktualizacje: {{ states.update | selectattr('state', 'eq', 'on') | list | count }}
+          message: >-
+            {% for u in states.update | selectattr('state', 'eq', 'on') | sort(attribute='name') -%}
+            {{ u.name }}: {{ u.attributes.installed_version }} -> {{ u.attributes.latest_version }}
+            {% endfor %}
+          data:
+            url: /config/updates
