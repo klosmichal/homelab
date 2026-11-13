@@ -28,7 +28,9 @@
 # that case belongs to the unavailability trigger below, not to this sensor.
 template:
   - binary_sensor:
-      - name: Salon czujnik zamrożony
+      # Renamed from "Salon czujnik zamrożony"; the unique_id keeps the
+      # original entity_id, binary_sensor.salon_czujnik_zamrozony.
+      - name: Salon czujnik nieaktywny
         unique_id: salon_czujnik_salon_frozen
         device_class: problem
         icon: mdi:snowflake-alert
@@ -104,32 +106,43 @@ automation:
         {{ 'odczyty stoją w miejscu od ponad 2 h - wyłącz i włącz zasilanie czujnika (USB-C)'
            if trigger.id == 'frozen' else 'nie odpowiada od godziny' }}
     actions:
+      # The body sensor reads high by an amount that grows with radiator
+      # temperature. While it was in charge (2026-11-03..04, 249 samples) it
+      # read +3.9 degC median, 3.0..4.6 for 90% of the time, max +5.0. A fixed
+      # -3.8 calibration therefore keeps the room within about +-0.8 degC, and
+      # when it errs at a hot radiator it errs towards a cooler room, never an
+      # overheated one. The calibration exists only for this fallback: the
+      # restore automation sets it back to 0 before returning to `external`.
+      - action: number.set_value
+        target:
+          entity_id: number.termostat_salon_local_temperature_calibration
+        data:
+          value: -3.8
+      - delay: "00:00:05"
       - action: select.select_option
         target:
           entity_id: select.termostat_salon_temperature_sensor_select
         data:
           option: internal
-      # 24 degC on the internal sensor is roughly 20.5 degC in the room at the
-      # measured mean offset - deliberately conservative, not comfortable.
       - action: climate.set_temperature
         target:
           entity_id: climate.termostat_salon
         data:
-          temperature: 24
+          temperature: 21
       - action: persistent_notification.create
         data:
           title: Salon - czujnik temperatury nie działa
           message: >-
             Czujnik salon {{ reason }}. Termostat salon przełączony na sensor
-            wewnętrzny (setpoint 24 degC ~ 20.5 degC w pomieszczeniu). Wróci na
-            czujnik automatycznie.
+            wewnętrzny z kalibracją -3.8 degC (dokładność ok. +-1 degC),
+            setpoint 21 degC. Wróci na czujnik automatycznie.
           notification_id: salon_trv_sensor_failed
       - action: notify.mobile_app_iphone_michal
         data:
           title: Salon - czujnik temperatury nie działa
           message: >-
             Czujnik {{ reason }}. Termostat grzeje teraz według własnego
-            czujnika (~20.5 degC w pokoju).
+            czujnika ze skorygowanym odczytem (+-1 degC), setpoint 21 degC.
           data:
             push:
               interruption-level: time-sensitive
@@ -167,6 +180,11 @@ automation:
           entity_id: number.termostat_salon_external_temperature_input
         data:
           value: "{{ states('sensor.salon_czujnik_salon_temperature') | float | round(1) }}"
+      - action: number.set_value
+        target:
+          entity_id: number.termostat_salon_local_temperature_calibration
+        data:
+          value: 0
       - delay: "00:00:05"
       - action: select.select_option
         target:
