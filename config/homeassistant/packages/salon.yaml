@@ -108,11 +108,14 @@ automation:
     actions:
       # The body sensor reads high by an amount that grows with radiator
       # temperature. While it was in charge (2026-11-03..04, 249 samples) it
-      # read +3.9 degC median, 3.0..4.6 for 90% of the time, max +5.0. A fixed
-      # -3.8 calibration therefore keeps the room within about +-0.8 degC, and
-      # when it errs at a hot radiator it errs towards a cooler room, never an
-      # overheated one. The calibration exists only for this fallback: the
-      # restore automation sets it back to 0 before returning to `external`.
+      # read +3.9 degC median, 3.0..4.6 for 90% of the time, max +5.0; up to
+      # +6.1 at a hot radiator. With the radiator mostly closed it is only
+      # about +1.8 (fallback night 2026-11-13..14: the valve held 21 on the
+      # corrected reading while the room sat at ~23). So -3.8 is right at a
+      # warm radiator and off by about +-2 degC at either extreme - adequate
+      # until the room sensor is power cycled. The calibration exists only for
+      # this fallback: the restore automation sets it back to 0 before
+      # returning to `external`. Details in docs/HA.md.
       - action: number.set_value
         target:
           entity_id: number.termostat_salon_local_temperature_calibration
@@ -134,7 +137,7 @@ automation:
           title: Salon - czujnik temperatury nie działa
           message: >-
             Czujnik salon {{ reason }}. Termostat salon przełączony na sensor
-            wewnętrzny z kalibracją -3.8 degC (dokładność ok. +-1 degC),
+            wewnętrzny z kalibracją -3.8 degC (dokładność ok. +-2 degC),
             setpoint 21 degC. Wróci na czujnik automatycznie.
           notification_id: salon_trv_sensor_failed
       - action: notify.mobile_app_iphone_michal
@@ -142,7 +145,7 @@ automation:
           title: Salon - czujnik temperatury nie działa
           message: >-
             Czujnik {{ reason }}. Termostat grzeje teraz według własnego
-            czujnika ze skorygowanym odczytem (+-1 degC), setpoint 21 degC.
+            czujnika ze skorygowanym odczytem (+-2 degC), setpoint 21 degC.
           data:
             push:
               interruption-level: time-sensitive

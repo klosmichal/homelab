@@ -113,7 +113,8 @@ ahead of the repo. Always read the diff before answering the prompt; `pull-confi
 is how you capture those changes back. Home Assistant's `automations.yaml`,
 `scenes.yaml` and `scripts.yaml` are pull-only and never overwritten — anything
 that should be version-controlled lives in `config/homeassistant/packages/`
-instead, which pushes normally but cannot be edited from the HA UI.
+instead, which pushes normally but cannot be edited from the HA UI. What those
+packages do is described in [`docs/HA.md`](docs/HA.md).
 
 Run both with `sudo`, or answer the password prompt: the runtime
 `AdGuardHome.yaml` is root-owned.

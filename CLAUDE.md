@@ -69,8 +69,10 @@ An SMLIGHT SLZB-MR5U on the LAN (Ethernet) carries both radios; nothing is passe
 
 `configuration.yaml` is the only HA file the repo owns outright. `automations.yaml`, `scenes.yaml` and `scripts.yaml` are pull-only in `config-sync.sh` because the HA UI rewrites them, so repo-owned automations and scenes go into `config/homeassistant/packages/*.yaml` instead, loaded by `homeassistant: packages: !include_dir_named packages`. Those files push like any other config; the tradeoff is that they are not editable from the UI.
 
-- `packages/salon.yaml` — the Sonoff TRVZB in the living room regulates on `sensor.salon_czujnik_salon_temperature` (Matter) rather than its own body sensor, which measures +3.5 °C hot on average and up to +6.1 °C when the radiator is warm, so a fixed `local_temperature_calibration` cannot correct it. `temperature_sensor_select` is set to `external` on the device; an automation mirrors the room reading into `number.termostat_salon_external_temperature_input` (Zigbee2MQTT does not synchronise that property itself), throttled to 0.1 °C changes plus a half-hourly heartbeat because the valve runs on batteries. Two further automations fall back to the internal sensor if the room sensor goes unavailable for an hour or freezes, and hand control back when it recovers, with a push to `notify.mobile_app_iphone_michal` each way. The fallback sets `local_temperature_calibration` to -3.8 °C (the body sensor's median offset while it regulated was +3.9, 90% within 3.0–4.6) and a 21 °C setpoint; the restore sets the calibration back to 0 before switching to `external`. "Freezes" is `binary_sensor.salon_czujnik_zamrozony` (friendly name "Salon czujnik nieaktywny"): the ALPSTUGA (firmware 1.0.26) can hang its readings while staying available on Matter, so the template sensor goes `on` when none of temperature, humidity and CO₂ has changed for 2 h; the fix is a power cycle. With `external` selected, `climate.termostat_salon` setpoints are real room temperatures — the living-room scenes in the same file depend on that
-- `packages/updates.yaml` — a Sunday 10:00 push listing every `update.*` entity that is `on` (Matter firmware from the DCL, Zigbee OTA, SLZB-MR5U, HACS). Nothing installs automatically; Docker images stay on `just update`
+- `packages/salon.yaml` — the living-room TRVZB regulates on the ALPSTUGA room sensor (`external` mode, fed by an automation), with a calibrated fallback to its own sensor when the room sensor is unavailable or frozen, push notifications, and the living-room scenes
+- `packages/updates.yaml` — a Sunday 10:00 push listing pending `update.*` entities; nothing installs automatically
+
+`docs/HA.md` describes all of this in detail — devices, the fallback and its calibration data, known device issues, and how to query the recorder DB and matter-server from the dev machine. Read it before changing HA config, and update it in the same commit.
 
 ### Configuration
 
@@ -107,6 +109,7 @@ Retention is 8 weekly + 6 monthly, grouped by host and tag. A new compose named 
 
 - `docs/INSTALL.md` — full step-by-step deployment
 - `docs/JELLYFIN-TV.md` — LG G4 playback settings and measured codec compatibility
+- `docs/HA.md` — Home Assistant: integrations, devices, packages, known device issues, troubleshooting
 
 ## Keeping docs in sync with the stack
 
@@ -116,6 +119,7 @@ Update whichever of these the change touches:
 - `README.md` — the architecture diagram, the service tables (both the routed one and the no-web-UI one), the daily operations list, and the Stack summary
 - `CLAUDE.md` — the service count, the networking model, the configuration section
 - `docs/INSTALL.md` — setup steps and the `.env` variable table
+- `docs/HA.md` — any change to a Home Assistant package, integration or automation-relevant device
 
 Verify against reality rather than trusting the existing text, which has drifted before:
 ```bash
