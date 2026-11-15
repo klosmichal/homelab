@@ -25,7 +25,7 @@ Network details (Thread route, UFW, conntrack) are in `CLAUDE.md` under
 | `config/homeassistant/configuration.yaml` | repo | push and pull |
 | `config/homeassistant/packages/*.yaml` | repo | push and pull |
 | `config/homeassistant/dashboards/*.yaml` | repo | push and pull |
-| `config/homeassistant/www/dom/*` (dashboard images) | checkout, gitignored | push and pull |
+| `config/homeassistant/www/dom/*` (floor plan drawings) | checkout, gitignored | push and pull |
 | `automations.yaml`, `scenes.yaml`, `scripts.yaml` | HA UI | pull only, never pushed |
 | everything under `.storage/` (integrations, devices, UI-built dashboards) | HA UI | not in the repo |
 
@@ -180,12 +180,12 @@ needs an HA restart.
 
 | View | Contents |
 |---|---|
-| Dom | Badges (weather, Salon air quality, problems and pending updates when there are any), the floor plan (landscape on wide screens, portrait on phones), a photo card per room, the Salon scenes, heating, Klima and vacuum shortcuts |
+| Dom | Badges (weather, Salon air quality, problems and pending updates when there are any), the floor plan (landscape and full width on wide screens, portrait on phones), the Salon scenes, heating, Klima and vacuum shortcuts |
 | Odkurzacz | Map with room, zone and spot cleaning, start/pause/dock, cleaning mode and suction, station status, consumables |
 | System | Current problems, pending updates with a link to Settings → Updates, Zigbee2MQTT / SLZB / router status, batteries |
 
 Rooms are Bubble Card pop-ups on the Dom view (`#salon`, `#biuro`,
-`#sypialnia`), opened from the floor plan, the room cards or the bottom bar.
+`#sypialnia`), opened from the floor plan or the bottom bar.
 Each holds the room's thermostat, lights, scenes and 24 h sensor graphs.
 
 **Thermostats for Biuro and Sypialnia** are already wired in as
@@ -203,11 +203,9 @@ cards appear. Add each new thermostat to the `kluczowe` list in
   get the landscape one, phones the portrait one. Elements are positioned in
   percent of the image, once per orientation, so a changed drawing means
   re-positioning them in `dom.yaml`.
-- `salon.jpg`, `biuro.jpg` and `sypialnia.jpg` are the room photos, 1600×900.
-  `biuro.jpg` is currently a copy of the Salon photo.
 
-The whole directory is **gitignored** because the repo is public: neither the
-photos nor the apartment plan are committed. The files exist only on the dev
+The whole directory is **gitignored** because the repo is public: the
+apartment plan is not committed. The files exist only on the dev
 machine and on the server, so keep a copy. Put them into the server's
 checkout by hand, then run `just sync-config` as usual:
 

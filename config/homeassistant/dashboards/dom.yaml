@@ -7,9 +7,8 @@
 # packages/dashboard.yaml. Images are served from www/dom/ as /local/dom/.
 #
 # Layout: three views (Dom, Odkurzacz, System). Rooms are Bubble Card pop-ups
-# on the Dom view, opened from the floor plan, the room cards or the bottom
-# bar. The floor plan has a landscape drawing for wide screens and a portrait
-# one for phones.
+# on the Dom view, opened from the floor plan or the bottom bar. The floor
+# plan has a landscape drawing for wide screens and a portrait one for phones.
 # docs/HA.md has the full description.
 
 title: Dom
@@ -65,7 +64,7 @@ views:
       # into the portrait copy below; nothing merged is ever overridden, because
       # HA logs a "duplicate key" warning for every override.
       - type: grid
-        column_span: 2
+        column_span: 3
         visibility:
           - condition: screen
             media_query: "(min-width: 900px)"
@@ -274,52 +273,6 @@ views:
                   padding: 0 4px
                   left: 73.1%
                   top: 17.6%
-
-      # Room cards - the phone's way into a room, a shortcut on desktop.
-      - type: grid
-        cards:
-          - type: heading
-            heading: Pokoje
-            icon: mdi:door
-          - type: picture-glance
-            title: Salon
-            image: /local/dom/salon.jpg
-            grid_options:
-              columns: 12
-            tap_action: *otworz_salon
-            entities:
-              - entity: sensor.salon_czujnik_salon_temperature
-                show_state: true
-              - entity: sensor.salon_czujnik_salon_humidity
-                show_state: true
-              - entity: light.zyrandol_salon
-                tap_action: *przelacz
-              - entity: light.kinkiet_salon
-                tap_action: *przelacz
-          - type: picture-glance
-            title: Biuro
-            image: /local/dom/biuro.jpg
-            grid_options:
-              columns: 12
-            tap_action: *otworz_biuro
-            entities:
-              - entity: sensor.biuro_czujnik_biuro_temperature
-                show_state: true
-              - entity: sensor.biuro_czujnik_biuro_humidity
-                show_state: true
-              - entity: light.lampka_biurowa
-                tap_action: *przelacz
-          - type: picture-glance
-            title: Sypialnia
-            image: /local/dom/sypialnia.jpg
-            grid_options:
-              columns: 12
-            tap_action: *otworz_sypialnia
-            entities:
-              - entity: sensor.sypialnia_czujnik_sypialnia_temperature
-                show_state: true
-              - entity: sensor.sypialnia_czujnik_sypialnia_humidity
-                show_state: true
 
       - type: grid
         cards:

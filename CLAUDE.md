@@ -73,7 +73,7 @@ An SMLIGHT SLZB-MR5U on the LAN (Ethernet) carries both radios; nothing is passe
 - `packages/updates.yaml` — a Sunday 10:00 push listing pending `update.*` entities; nothing installs automatically
 - `packages/dashboard.yaml` — `sensor.dom_problemy` and `sensor.dom_aktualizacje`, the counts behind the dashboard's badges
 
-The "Dom" dashboard is YAML-mode and repo-owned too: `config/homeassistant/dashboards/dom.yaml`, registered under `lovelace: dashboards:` in `configuration.yaml`, with its images in `config/homeassistant/www/dom/` (served as `/local/dom/`). `config-sync.sh` pushes both directories. The images themselves (room photos and the apartment plan, `www/dom/*`) are gitignored because the repo is public; they are copied to the server's checkout with `scp`. It needs the Bubble Card and mini-graph-card HACS frontend cards; frontend resources stay in storage mode so HACS manages them.
+The "Dom" dashboard is YAML-mode and repo-owned too: `config/homeassistant/dashboards/dom.yaml`, registered under `lovelace: dashboards:` in `configuration.yaml`, with its images in `config/homeassistant/www/dom/` (served as `/local/dom/`). `config-sync.sh` pushes both directories. The images themselves (the apartment plan drawings, `www/dom/*`) are gitignored because the repo is public; they are copied to the server's checkout with `scp`. It needs the Bubble Card and mini-graph-card HACS frontend cards; frontend resources stay in storage mode so HACS manages them.
 
 `docs/HA.md` describes all of this in detail — devices, the fallback and its calibration data, known device issues, and how to query the recorder DB and matter-server from the dev machine. Read it before changing HA config, and update it in the same commit.
 
