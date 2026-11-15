@@ -5,3 +5,7 @@
 *.pid
 .DS_Store
 config/traefik/traefik-users
+
+# Room photos and the apartment plan for the HA dashboard: the repo is public,
+# so they are copied to the server by hand (see docs/HA.md), never committed.
+config/homeassistant/www/dom/*

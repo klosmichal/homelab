@@ -18,6 +18,18 @@ logger:
 frontend:
   themes: !include_dir_merge_named themes
 
+# Repo-owned dashboard. The default dashboard and the UI-built ones stay in
+# storage mode, and so do the frontend resources, so HACS keeps registering
+# its cards by itself.
+lovelace:
+  dashboards:
+    dashboard-dom:
+      mode: yaml
+      title: Dom
+      icon: mdi:home-variant
+      show_in_sidebar: true
+      filename: dashboards/dom.yaml
+
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml

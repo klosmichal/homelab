@@ -1,0 +1,71 @@
+# Helper sensors for the "Dom" dashboard (dashboards/dom.yaml).
+#
+# The dashboard needs two numbers it cannot compute itself: how many things
+# are wrong, and how many updates are pending. A badge can only show and
+# filter on an entity, so both live here as template sensors.
+#
+# Trigger-based on purpose: `variables` is evaluated once per trigger and
+# shared by the state and the attribute, so the problem list is written once.
+# A one-minute tick is frequent enough for a status badge; the two salon
+# entities are also state triggers so the heating fallback shows immediately.
+
+template:
+  - triggers:
+      - trigger: time_pattern
+        minutes: "/1"
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id:
+          - binary_sensor.salon_czujnik_zamrozony
+          - select.termostat_salon_temperature_sensor_select
+    variables:
+      problemy: >-
+        {% set ns = namespace(l=[]) %}
+        {% if is_state('binary_sensor.salon_czujnik_zamrozony', 'on') %}
+          {% set ns.l = ns.l + ['Czujnik salon: odczyty stoją w miejscu - wyłącz i włącz zasilanie (USB-C)'] %}
+        {% endif %}
+        {% if is_state('select.termostat_salon_temperature_sensor_select', 'internal') %}
+          {% set ns.l = ns.l + ['Termostat salon grzeje awaryjnie według własnego czujnika'] %}
+        {% endif %}
+        {% if is_state('binary_sensor.zigbee2mqtt_bridge_connection_state', 'off') %}
+          {% set ns.l = ns.l + ['Zigbee2MQTT: brak połączenia z koordynatorem'] %}
+        {% endif %}
+        {# One entity per device the dashboard controls or reads. A thermostat
+           added to Biuro or Sypialnia goes here too. #}
+        {% set kluczowe = [
+          'climate.termostat_salon',
+          'climate.klima',
+          'light.zyrandol_salon',
+          'light.kinkiet_salon',
+          'light.lampka_biurowa',
+          'sensor.salon_czujnik_salon_temperature',
+          'sensor.biuro_czujnik_biuro_temperature',
+          'sensor.sypialnia_czujnik_sypialnia_temperature',
+          'vacuum.x50_ultra_complete',
+          'binary_sensor.zigbee2mqtt_bridge_connection_state',
+        ] %}
+        {% for s in expand(kluczowe) if s.state in ['unavailable', 'unknown'] %}
+          {% set ns.l = ns.l + [s.name ~ ': niedostępne'] %}
+        {% endfor %}
+        {# Phones and the vacuum run low as a matter of course. #}
+        {% set pomin = integration_entities('mobile_app') + integration_entities('dreame_vacuum') %}
+        {% for s in states.sensor
+           if s.attributes.device_class == 'battery' and s.entity_id not in pomin
+              and is_number(s.state) and s.state | float < 20 %}
+          {% set ns.l = ns.l + [s.name ~ ': bateria ' ~ s.state | float | round(0) | int ~ '%'] %}
+        {% endfor %}
+        {{ ns.l }}
+      aktualizacje: >-
+        {{ states.update | selectattr('state', 'eq', 'on') | list | count }}
+    sensor:
+      - name: Dom problemy
+        unique_id: dom_problemy
+        icon: mdi:alert-circle
+        state: "{{ problemy | count }}"
+        attributes:
+          lista: "{{ problemy }}"
+      - name: Dom aktualizacje
+        unique_id: dom_aktualizacje
+        icon: mdi:package-up
+        state: "{{ aktualizacje }}"

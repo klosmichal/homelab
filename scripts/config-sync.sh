@@ -63,6 +63,16 @@ for f in "$REPO"/config/homeassistant/packages/*.yaml; do
   FILES+=("config/homeassistant/packages/$(basename "$f")|homeassistant/config/packages/$(basename "$f")|both")
 done
 
+# Same for the YAML dashboards and the images they show (served as /local/dom/).
+for f in "$REPO"/config/homeassistant/dashboards/*.yaml; do
+  [ -f "$f" ] || continue
+  FILES+=("config/homeassistant/dashboards/$(basename "$f")|homeassistant/config/dashboards/$(basename "$f")|both")
+done
+for f in "$REPO"/config/homeassistant/www/dom/*; do
+  [ -f "$f" ] || continue
+  FILES+=("config/homeassistant/www/dom/$(basename "$f")|homeassistant/config/www/dom/$(basename "$f")|both")
+done
+
 # Homepage is a directory of yaml/css/js; take whatever the repo holds.
 for f in "$REPO"/config/homepage/*; do
   [ -f "$f" ] || continue

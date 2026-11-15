@@ -1,0 +1,975 @@
+# "Dom" dashboard - registered in configuration.yaml under lovelace.dashboards,
+# served at /dashboard-dom. Repo-owned: edit here, not in the HA UI.
+#
+# Needs these HACS frontend cards: Bubble Card (>= 3.2, for standalone
+# pop-ups), mini-graph-card and Xiaomi Vacuum Map Card.
+# Helper sensors (sensor.dom_problemy, sensor.dom_aktualizacje) come from
+# packages/dashboard.yaml. Images are served from www/dom/ as /local/dom/.
+#
+# Layout: three views (Dom, Odkurzacz, System). Rooms are Bubble Card pop-ups
+# on the Dom view, opened from the floor plan, the room cards or the bottom
+# bar. The floor plan has a landscape drawing for wide screens and a portrait
+# one for phones.
+# docs/HA.md has the full description.
+
+title: Dom
+
+views:
+  # ───────────────────────────── Dom ─────────────────────────────
+  - title: Dom
+    path: dom
+    icon: mdi:home-variant
+    type: sections
+    max_columns: 3
+    badges:
+      - type: entity
+        entity: weather.forecast_home
+        show_name: false
+        show_state: true
+        state_content:
+          - state
+          - temperature
+      - type: entity
+        entity: sensor.salon_czujnik_salon_air_quality
+        name: Powietrze
+        show_name: true
+      - type: entity
+        entity: sensor.dom_problemy
+        name: Problemy
+        show_name: true
+        color: red
+        visibility:
+          - condition: numeric_state
+            entity: sensor.dom_problemy
+            above: 0
+        tap_action:
+          action: navigate
+          navigation_path: /dashboard-dom/system
+      - type: entity
+        entity: sensor.dom_aktualizacje
+        name: Aktualizacje
+        show_name: true
+        color: orange
+        visibility:
+          - condition: numeric_state
+            entity: sensor.dom_aktualizacje
+            above: 0
+        tap_action:
+          action: navigate
+          navigation_path: /dashboard-dom/system
+
+    sections:
+      # Floor plan, landscape - wide screens. left/top are percentages of the
+      # image, so they must be redone if the drawing changes. Each element's
+      # core (entity, actions) and the shared look are anchored here and merged
+      # into the portrait copy below; nothing merged is ever overridden, because
+      # HA logs a "duplicate key" warning for every override.
+      - type: grid
+        column_span: 2
+        visibility:
+          - condition: screen
+            media_query: "(min-width: 900px)"
+        cards:
+          - type: heading
+            heading: Mieszkanie
+            icon: mdi:floor-plan
+          - type: picture-elements
+            image: /local/dom/plan-landscape.svg
+            grid_options:
+              columns: full
+            elements:
+              - <<: &plan_salon_temp
+                  type: state-label
+                  entity: sensor.salon_czujnik_salon_temperature
+                  tap_action: &otworz_salon
+                    action: navigate
+                    navigation_path: "#salon"
+                style:
+                  <<: &etykieta
+                    font-weight: 600
+                    color: var(--primary-text-color)
+                    background: var(--card-background-color)
+                    border-radius: 999px
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25)
+                  font-size: 1.5em
+                  padding: 0 10px
+                  left: 72.3%
+                  top: 52.5%
+              - <<: &plan_zyrandol
+                  type: state-icon
+                  entity: light.zyrandol_salon
+                  title: Żyrandol
+                  tap_action: &przelacz
+                    action: toggle
+                  hold_action: &wiecej
+                    action: more-info
+                style:
+                  <<: &ikona
+                    background: var(--card-background-color)
+                    border-radius: 50%
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25)
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 78.2%
+                  top: 65.9%
+              - <<: &plan_kinkiet
+                  type: state-icon
+                  entity: light.kinkiet_salon
+                  title: Kinkiet
+                  tap_action: *przelacz
+                  hold_action: *wiecej
+                style:
+                  <<: *ikona
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 74.5%
+                  top: 88.1%
+              - <<: &plan_klima
+                  type: state-icon
+                  entity: climate.klima
+                  title: Klima
+                  icon: mdi:air-conditioner
+                  tap_action: *otworz_salon
+                style:
+                  <<: *ikona
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 46.3%
+                  top: 46.9%
+              - <<: &plan_trv_salon
+                  type: state-icon
+                  entity: climate.termostat_salon
+                  title: Termostat salon
+                  icon: mdi:radiator
+                  tap_action: *otworz_salon
+                style:
+                  <<: *ikona
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 83.5%
+                  top: 43.9%
+              - <<: &plan_biuro_temp
+                  type: state-label
+                  entity: sensor.biuro_czujnik_biuro_temperature
+                  tap_action: &otworz_biuro
+                    action: navigate
+                    navigation_path: "#biuro"
+                style:
+                  <<: *etykieta
+                  font-size: 1.5em
+                  padding: 0 10px
+                  left: 16.5%
+                  top: 73.8%
+              - <<: &plan_lampka
+                  type: state-icon
+                  entity: light.lampka_biurowa
+                  title: Lampka biurowa
+                  tap_action: *przelacz
+                  hold_action: *wiecej
+                style:
+                  <<: *ikona
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 9.7%
+                  top: 87.9%
+              - <<: &plan_odkurzacz
+                  type: state-icon
+                  entity: vacuum.x50_ultra_complete
+                  title: Odkurzacz
+                  icon: mdi:robot-vacuum
+                  tap_action:
+                    action: navigate
+                    navigation_path: /dashboard-dom/odkurzacz
+                style:
+                  <<: *ikona
+                  padding: 6px
+                  --mdc-icon-size: 30px
+                  left: 52.7%
+                  top: 26.9%
+              - <<: &plan_sypialnia_temp
+                  type: state-label
+                  entity: sensor.sypialnia_czujnik_sypialnia_temperature
+                  tap_action: &otworz_sypialnia
+                    action: navigate
+                    navigation_path: "#sypialnia"
+                style:
+                  <<: *etykieta
+                  font-size: 1.5em
+                  padding: 0 10px
+                  left: 14.6%
+                  top: 26.9%
+
+      # Floor plan, portrait - phones and narrow windows. The same elements on
+      # the drawing rotated a quarter turn clockwise, with smaller labels.
+      - type: grid
+        visibility:
+          - condition: screen
+            media_query: "(max-width: 899px)"
+        cards:
+          - type: picture-elements
+            image: /local/dom/plan-portrait.svg
+            grid_options:
+              columns: full
+            elements:
+              - <<: *plan_salon_temp
+                style:
+                  <<: *etykieta
+                  font-size: 1.1em
+                  padding: 0 4px
+                  left: 47.5%
+                  top: 72.3%
+              - <<: *plan_zyrandol
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 34.1%
+                  top: 78.2%
+              - <<: *plan_kinkiet
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 11.9%
+                  top: 74.5%
+              - <<: *plan_klima
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 53.1%
+                  top: 46.3%
+              - <<: *plan_trv_salon
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 56.1%
+                  top: 83.5%
+              - <<: *plan_biuro_temp
+                style:
+                  <<: *etykieta
+                  font-size: 1.1em
+                  padding: 0 4px
+                  left: 32.5%
+                  top: 14.4%
+              - <<: *plan_lampka
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 12.1%
+                  top: 9.7%
+              - <<: *plan_odkurzacz
+                style:
+                  <<: *ikona
+                  padding: 4px
+                  --mdc-icon-size: 24px
+                  left: 73.1%
+                  top: 52.7%
+              - <<: *plan_sypialnia_temp
+                style:
+                  <<: *etykieta
+                  font-size: 1.1em
+                  padding: 0 4px
+                  left: 73.1%
+                  top: 17.6%
+
+      # Room cards - the phone's way into a room, a shortcut on desktop.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Pokoje
+            icon: mdi:door
+          - type: picture-glance
+            title: Salon
+            image: /local/dom/salon.jpg
+            grid_options:
+              columns: 12
+            tap_action: *otworz_salon
+            entities:
+              - entity: sensor.salon_czujnik_salon_temperature
+                show_state: true
+              - entity: sensor.salon_czujnik_salon_humidity
+                show_state: true
+              - entity: light.zyrandol_salon
+                tap_action: *przelacz
+              - entity: light.kinkiet_salon
+                tap_action: *przelacz
+          - type: picture-glance
+            title: Biuro
+            image: /local/dom/biuro.jpg
+            grid_options:
+              columns: 12
+            tap_action: *otworz_biuro
+            entities:
+              - entity: sensor.biuro_czujnik_biuro_temperature
+                show_state: true
+              - entity: sensor.biuro_czujnik_biuro_humidity
+                show_state: true
+              - entity: light.lampka_biurowa
+                tap_action: *przelacz
+          - type: picture-glance
+            title: Sypialnia
+            image: /local/dom/sypialnia.jpg
+            grid_options:
+              columns: 12
+            tap_action: *otworz_sypialnia
+            entities:
+              - entity: sensor.sypialnia_czujnik_sypialnia_temperature
+                show_state: true
+              - entity: sensor.sypialnia_czujnik_sypialnia_humidity
+                show_state: true
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sceny - Salon
+            icon: mdi:palette
+          - &sceny_salon
+            type: grid
+            columns: 3
+            square: false
+            grid_options:
+              columns: 12
+            cards:
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Dzień
+                icon: mdi:weather-sunny
+                tap_action:
+                  action: call-service
+                  service: scene.turn_on
+                  target:
+                    entity_id: scene.salon_dzien
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Wieczór
+                icon: mdi:weather-night
+                tap_action:
+                  action: call-service
+                  service: scene.turn_on
+                  target:
+                    entity_id: scene.salon_wieczor
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Film
+                icon: mdi:movie-open
+                tap_action:
+                  action: call-service
+                  service: scene.turn_on
+                  target:
+                    entity_id: scene.salon_film
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Noc
+                icon: mdi:bed
+                tap_action:
+                  action: call-service
+                  service: scene.turn_on
+                  target:
+                    entity_id: scene.salon_noc
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Wyjazd
+                icon: mdi:airplane
+                tap_action:
+                  action: call-service
+                  service: scene.turn_on
+                  target:
+                    entity_id: scene.salon_wyjazd
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Szybki dostęp
+            icon: mdi:lightning-bolt
+          - &termostat_salon
+            type: custom:bubble-card
+            card_type: climate
+            entity: climate.termostat_salon
+            name: Ogrzewanie salon
+            icon: mdi:radiator
+            step: 0.5
+            min_temp: 16
+            max_temp: 25
+            show_state: true
+            show_attribute: true
+            attribute: current_temperature
+            grid_options:
+              columns: 12
+          - &klima
+            type: custom:bubble-card
+            card_type: climate
+            entity: climate.klima
+            name: Klima
+            icon: mdi:air-conditioner
+            show_state: true
+            show_attribute: true
+            attribute: current_temperature
+            grid_options:
+              columns: 12
+            sub_button:
+              - name: Tryb
+                select_attribute: hvac_modes
+                show_arrow: false
+                state_background: false
+              - name: Wentylator
+                icon: mdi:fan
+                select_attribute: fan_modes
+                show_arrow: false
+                state_background: false
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
+            entity: vacuum.x50_ultra_complete
+            name: Odkurzacz
+            icon: mdi:robot-vacuum
+            show_state: true
+            grid_options:
+              columns: 12
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-dom/odkurzacz
+
+          # ── Room pop-ups. Hidden until their hash is opened. ──
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#salon"
+            name: Salon
+            icon: mdi:sofa
+            entity: sensor.salon_czujnik_salon_temperature
+            show_state: true
+            width_desktop: 560px
+            cards:
+              # Explains a setpoint that looks wrong during the fallback.
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: select.termostat_salon_temperature_sensor_select
+                    state: internal
+                card:
+                  type: markdown
+                  content: >-
+                    **Tryb awaryjny.** Czujnik pokojowy nie działa, termostat
+                    grzeje według własnego czujnika (dokładność ok. ±2 °C).
+              - type: custom:bubble-card
+                card_type: separator
+                name: Temperatura
+                icon: mdi:thermometer
+              - *termostat_salon
+              - *klima
+              - type: custom:bubble-card
+                card_type: separator
+                name: Światła
+                icon: mdi:lightbulb-group
+              - type: custom:bubble-card
+                card_type: button
+                button_type: slider
+                entity: light.zyrandol_salon
+                name: Żyrandol
+                icon: mdi:ceiling-light
+                show_state: true
+                sub_button:
+                  - entity: light.zyrandol_salon
+                    icon: mdi:power
+                    tap_action:
+                      action: toggle
+                  - entity: light.zyrandol_salon
+                    icon: mdi:tune-variant
+                    tap_action:
+                      action: more-info
+              - type: custom:bubble-card
+                card_type: button
+                button_type: slider
+                entity: light.kinkiet_salon
+                name: Kinkiet
+                icon: mdi:wall-sconce-flat
+                show_state: true
+                sub_button:
+                  - entity: light.kinkiet_salon
+                    icon: mdi:power
+                    tap_action:
+                      action: toggle
+                  - entity: light.kinkiet_salon
+                    icon: mdi:palette
+                    tap_action:
+                      action: more-info
+              - type: custom:bubble-card
+                card_type: separator
+                name: Sceny
+                icon: mdi:palette
+              - *sceny_salon
+              - type: custom:bubble-card
+                card_type: separator
+                name: Czujniki (24 h)
+                icon: mdi:chart-line
+              - type: custom:mini-graph-card
+                name: Temperatura
+                entities:
+                  - sensor.salon_czujnik_salon_temperature
+                hours_to_show: 24
+                points_per_hour: 2
+                line_width: 4
+                show: &wykres
+                  labels: false
+                  fill: fade
+              - type: horizontal-stack
+                cards:
+                  - type: custom:mini-graph-card
+                    name: Wilgotność
+                    entities:
+                      - sensor.salon_czujnik_salon_humidity
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+                  - type: custom:mini-graph-card
+                    name: CO₂
+                    entities:
+                      - sensor.salon_czujnik_salon_carbon_dioxide
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+                    color_thresholds:
+                      - value: 0
+                        color: "#4caf50"
+                      - value: 1000
+                        color: "#ff9800"
+                      - value: 1500
+                        color: "#f44336"
+              - type: horizontal-stack
+                cards:
+                  - type: custom:mini-graph-card
+                    name: PM2.5
+                    entities:
+                      - sensor.salon_czujnik_salon_pm2_5
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+                  - type: tile
+                    entity: sensor.salon_czujnik_salon_air_quality
+                    name: Jakość powietrza
+                    vertical: true
+
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#biuro"
+            name: Biuro
+            icon: mdi:desk
+            entity: sensor.biuro_czujnik_biuro_temperature
+            show_state: true
+            width_desktop: 560px
+            cards:
+              # Appears by itself once a TRV named "Termostat biuro" is paired.
+              # A missing entity counts as `unavailable` in this condition.
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: climate.termostat_biuro
+                    state_not: unavailable
+                card:
+                  type: custom:bubble-card
+                  card_type: climate
+                  entity: climate.termostat_biuro
+                  name: Ogrzewanie biuro
+                  icon: mdi:radiator
+                  step: 0.5
+                  min_temp: 16
+                  max_temp: 25
+                  show_state: true
+                  show_attribute: true
+                  attribute: current_temperature
+              - type: custom:bubble-card
+                card_type: separator
+                name: Światła
+                icon: mdi:lightbulb-group
+              - type: custom:bubble-card
+                card_type: button
+                button_type: slider
+                entity: light.lampka_biurowa
+                name: Lampka biurowa
+                icon: mdi:desk-lamp
+                show_state: true
+                sub_button:
+                  - entity: light.lampka_biurowa
+                    icon: mdi:power
+                    tap_action:
+                      action: toggle
+                  - entity: light.lampka_biurowa
+                    icon: mdi:palette
+                    tap_action:
+                      action: more-info
+              - type: custom:bubble-card
+                card_type: separator
+                name: Czujniki (24 h)
+                icon: mdi:chart-line
+              - type: horizontal-stack
+                cards:
+                  - type: custom:mini-graph-card
+                    name: Temperatura
+                    entities:
+                      - sensor.biuro_czujnik_biuro_temperature
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+                  - type: custom:mini-graph-card
+                    name: Wilgotność
+                    entities:
+                      - sensor.biuro_czujnik_biuro_humidity
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+              - type: tile
+                entity: sensor.biuro_czujnik_biuro_battery
+                name: Bateria czujnika
+
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#sypialnia"
+            name: Sypialnia
+            icon: mdi:bed-king
+            entity: sensor.sypialnia_czujnik_sypialnia_temperature
+            show_state: true
+            width_desktop: 560px
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: climate.termostat_sypialnia
+                    state_not: unavailable
+                card:
+                  type: custom:bubble-card
+                  card_type: climate
+                  entity: climate.termostat_sypialnia
+                  name: Ogrzewanie sypialnia
+                  icon: mdi:radiator
+                  step: 0.5
+                  min_temp: 16
+                  max_temp: 25
+                  show_state: true
+                  show_attribute: true
+                  attribute: current_temperature
+              - type: custom:bubble-card
+                card_type: separator
+                name: Czujniki (24 h)
+                icon: mdi:chart-line
+              - type: horizontal-stack
+                cards:
+                  - type: custom:mini-graph-card
+                    name: Temperatura
+                    entities:
+                      - sensor.sypialnia_czujnik_sypialnia_temperature
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+                  - type: custom:mini-graph-card
+                    name: Wilgotność
+                    entities:
+                      - sensor.sypialnia_czujnik_sypialnia_humidity
+                    hours_to_show: 24
+                    points_per_hour: 2
+                    line_width: 5
+                    show: *wykres
+              - type: tile
+                entity: sensor.sypialnia_czujnik_sypialnia_battery
+                name: Bateria czujnika
+
+          # Bottom bar. Bubble Card requires it to be the last card in the view.
+          - type: custom:bubble-card
+            card_type: horizontal-buttons-stack
+            1_name: Salon
+            1_icon: mdi:sofa
+            1_link: "#salon"
+            1_entity: light.zyrandol_salon
+            2_name: Biuro
+            2_icon: mdi:desk
+            2_link: "#biuro"
+            2_entity: light.lampka_biurowa
+            3_name: Sypialnia
+            3_icon: mdi:bed-king
+            3_link: "#sypialnia"
+            4_name: Odkurzacz
+            4_icon: mdi:robot-vacuum
+            4_link: /dashboard-dom/odkurzacz
+            5_name: System
+            5_icon: mdi:cog
+            5_link: /dashboard-dom/system
+
+  # ─────────────────────────── Odkurzacz ───────────────────────────
+  - title: Odkurzacz
+    path: odkurzacz
+    icon: mdi:robot-vacuum
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Mapa
+            icon: mdi:map
+          # Carried over from the UI-built "Domson" dashboard, including the
+          # room outlines. Segment ids are the Dreame room numbers.
+          - type: custom:xiaomi-vacuum-map-card
+            grid_options:
+              columns: full
+            vacuum_platform: default
+            entity: vacuum.x50_ultra_complete
+            map_source:
+              camera: camera.x50_ultra_complete_map
+            calibration_source:
+              camera: true
+            two_finger_pan: true
+            map_modes:
+              - template: vacuum_clean_segment
+                repeats_type: EXTERNAL
+                max_repeats: 3
+                service_call_schema:
+                  service: dreame_vacuum.vacuum_clean_segment
+                  service_data:
+                    entity_id: "[[entity_id]]"
+                    segments: "[[selection]]"
+                    repeats: "[[repeats]]"
+                predefined_selections:
+                  - id: 1
+                    outline: [[-2550, 6950], [-2550, 11450], [750, 11450], [750, 6950]]
+                  - id: 2
+                    outline: [[-3850, 6950], [-3850, 11450], [-2500, 11450], [-2500, 6950]]
+                  - id: 4
+                    outline: [[-4350, 4050], [-4350, 5750], [-2750, 5750], [-2750, 4050]]
+                  - id: 5
+                    outline: [[-2750, 3150], [-2750, 7000], [750, 7000], [750, 3150]]
+                  - id: 6
+                    outline: [[-5900, 2100], [-5900, 4750], [-2650, 4750], [-2650, 2100]]
+                  - id: 7
+                    outline: [[-4350, -550], [-4350, 3350], [-1500, 3350], [-1500, -550]]
+                  - id: 9
+                    outline: [[-1250, -450], [-1250, 3350], [850, 3350], [850, -450]]
+                  - id: 10
+                    outline: [[-4100, -2600], [-4100, -550], [-1450, -550], [-1450, -2600]]
+              - template: vacuum_clean_zone
+                max_selections: 10
+                repeats_type: EXTERNAL
+                max_repeats: 3
+                service_call_schema:
+                  service: dreame_vacuum.vacuum_clean_zone
+                  service_data:
+                    entity_id: "[[entity_id]]"
+                    zone: "[[selection]]"
+                    repeats: "[[repeats]]"
+              - name: Clean Spot
+                icon: mdi:map-marker-plus
+                max_repeats: 3
+                selection_type: MANUAL_POINT
+                repeats_type: EXTERNAL
+                service_call_schema:
+                  service: dreame_vacuum.vacuum_clean_spot
+                  service_data:
+                    entity_id: "[[entity_id]]"
+                    points: "[[selection]]"
+                    repeats: "[[repeats]]"
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sterowanie
+            icon: mdi:gesture-tap
+          - type: tile
+            entity: vacuum.x50_ultra_complete
+            name: Odkurzacz
+            grid_options:
+              columns: 12
+            features:
+              - type: vacuum-commands
+                commands:
+                  - start_pause
+                  - stop
+                  - return_home
+                  - locate
+          - type: tile
+            entity: select.x50_ultra_complete_cleaning_mode
+            name: Tryb sprzątania
+            grid_options:
+              columns: 12
+            features:
+              - type: select-options
+          - type: tile
+            entity: select.x50_ultra_complete_suction_level
+            name: Moc ssania
+            grid_options:
+              columns: 12
+            features:
+              - type: select-options
+          - type: tile
+            entity: sensor.x50_ultra_complete_status
+            name: Status
+          - type: tile
+            entity: sensor.x50_ultra_complete_battery_level
+            name: Bateria
+          - type: tile
+            entity: sensor.x50_ultra_complete_current_room
+            name: Pokój
+          - type: tile
+            entity: sensor.x50_ultra_complete_cleaning_progress
+            name: Postęp
+          - type: tile
+            entity: sensor.x50_ultra_complete_error
+            name: Błąd
+            grid_options:
+              columns: 12
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Stacja
+            icon: mdi:water
+          - type: tile
+            entity: sensor.x50_ultra_complete_clean_water_tank_status
+            name: Czysta woda
+          - type: tile
+            entity: sensor.x50_ultra_complete_dirty_water_tank_status
+            name: Brudna woda
+          - type: tile
+            entity: sensor.x50_ultra_complete_dust_bag_status
+            name: Worek
+          - type: tile
+            entity: sensor.x50_ultra_complete_detergent_status
+            name: Detergent
+          - type: tile
+            entity: sensor.x50_ultra_complete_self_wash_base_status
+            name: Stacja myjąca
+          - type: tile
+            entity: sensor.x50_ultra_complete_auto_empty_status
+            name: Opróżnianie
+          - type: heading
+            heading: Eksploatacja
+            icon: mdi:wrench-clock
+          - type: tile
+            entity: sensor.x50_ultra_complete_main_brush_left
+            name: Szczotka główna
+          - type: tile
+            entity: sensor.x50_ultra_complete_side_brush_left
+            name: Szczotka boczna
+          - type: tile
+            entity: sensor.x50_ultra_complete_filter_left
+            name: Filtr
+          - type: tile
+            entity: sensor.x50_ultra_complete_sensor_dirty_left
+            name: Czujniki
+          - &nawigacja
+            type: custom:bubble-card
+            card_type: horizontal-buttons-stack
+            1_name: Dom
+            1_icon: mdi:home-variant
+            1_link: /dashboard-dom/dom
+            2_name: Odkurzacz
+            2_icon: mdi:robot-vacuum
+            2_link: /dashboard-dom/odkurzacz
+            3_name: System
+            3_icon: mdi:cog
+            3_link: /dashboard-dom/system
+
+  # ──────────────────────────── System ────────────────────────────
+  - title: System
+    path: system
+    icon: mdi:cog
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Problemy
+            icon: mdi:alert-circle
+          # HA's own persistent notifications cannot be listed by a card, so
+          # this shows the conditions that raise them (packages/dashboard.yaml).
+          - type: markdown
+            grid_options:
+              columns: 12
+            content: |-
+              {% set lista = state_attr('sensor.dom_problemy', 'lista') or [] %}
+              {% if lista %}
+              {% for p in lista %}
+              - {{ p }}
+              {% endfor %}
+              {% else %}
+              Wszystko działa.
+              {% endif %}
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Aktualizacje
+            icon: mdi:package-up
+          - type: markdown
+            grid_options:
+              columns: 12
+            content: |-
+              {% set u = states.update | selectattr('state', 'eq', 'on') | sort(attribute='name') | list %}
+              {% if u %}
+              {% for x in u %}
+              - **{{ x.name }}**: {{ x.attributes.installed_version }} → {{ x.attributes.latest_version }}
+              {% endfor %}
+              {% else %}
+              Brak oczekujących aktualizacji.
+              {% endif %}
+          - type: tile
+            entity: sensor.dom_aktualizacje
+            name: Otwórz aktualizacje
+            icon: mdi:open-in-app
+            grid_options:
+              columns: 12
+            tap_action:
+              action: navigate
+              navigation_path: /config/updates
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sieć
+            icon: mdi:lan
+          - type: tile
+            entity: binary_sensor.zigbee2mqtt_bridge_connection_state
+            name: Zigbee2MQTT
+          - type: tile
+            entity: sensor.zigbee2mqtt_bridge_version
+            name: Wersja Z2M
+          - type: tile
+            entity: binary_sensor.slzb_mr5u_ethernet
+            name: SLZB Ethernet
+          - type: tile
+            entity: binary_sensor.slzb_mr5u_internet
+            name: SLZB Internet
+          - type: tile
+            entity: sensor.slzb_mr5u_core_chip_temp
+            name: SLZB temp.
+          - type: tile
+            entity: binary_sensor.archer_be230_wan_status
+            name: Router WAN
+          - type: heading
+            heading: Baterie
+            icon: mdi:battery
+          - type: tile
+            entity: sensor.termostat_salon_battery
+            name: Termostat salon
+          - type: tile
+            entity: sensor.biuro_czujnik_biuro_battery
+            name: Czujnik biuro
+          - type: tile
+            entity: sensor.sypialnia_czujnik_sypialnia_battery
+            name: Czujnik sypialnia
+          - type: tile
+            entity: sensor.x50_ultra_complete_battery_level
+            name: Odkurzacz
+          - *nawigacja

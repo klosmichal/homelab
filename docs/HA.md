@@ -24,8 +24,10 @@ Network details (Thread route, UFW, conntrack) are in `CLAUDE.md` under
 |---|---|---|
 | `config/homeassistant/configuration.yaml` | repo | push and pull |
 | `config/homeassistant/packages/*.yaml` | repo | push and pull |
+| `config/homeassistant/dashboards/*.yaml` | repo | push and pull |
+| `config/homeassistant/www/dom/*` (dashboard images) | checkout, gitignored | push and pull |
 | `automations.yaml`, `scenes.yaml`, `scripts.yaml` | HA UI | pull only, never pushed |
-| everything under `.storage/` (integrations, devices, dashboards) | HA UI | not in the repo |
+| everything under `.storage/` (integrations, devices, UI-built dashboards) | HA UI | not in the repo |
 
 Anything that should be version-controlled goes into a package. Packages cannot
 be edited from the HA UI; that is the price of having them in git. The three
@@ -58,7 +60,8 @@ Matter, Thread, Open Thread Border Router, MQTT (Zigbee2MQTT), SMLIGHT
 UPnP (Archer BE230 router), Mobile App (two iPhones), Met.no weather, Google
 Translate TTS, Radio Browser, Shopping list, Bluetooth.
 
-HACS frontend: Mushroom cards, Xiaomi Vacuum Map card.
+HACS frontend: Mushroom cards, Xiaomi Vacuum Map card, and for the "Dom"
+dashboard Bubble Card (3.2 or newer) and mini-graph-card.
 
 ## Devices
 
@@ -162,6 +165,73 @@ Nothing installs automatically. Device firmware can change how a device
 behaves, and the salon regulation depends on the TRVZB's exact properties. An
 OTA also costs battery devices a noticeable share of their charge. Docker
 images, including HA and matter-server themselves, go through `just update`.
+
+## "Dom" dashboard — `dashboards/dom.yaml`
+
+A YAML-mode dashboard at `/dashboard-dom`, registered under
+`lovelace: dashboards:` in `configuration.yaml`. The default dashboard, the
+UI-built "Domson" and "Map" dashboards and the frontend resources stay in
+storage mode, so HACS still registers its cards by itself. Because the file is
+repo-owned, the dashboard cannot be edited from the HA UI.
+
+A change to `dom.yaml` or an image needs only a browser refresh after the
+copy. Registering a new dashboard, or changing `packages/dashboard.yaml`,
+needs an HA restart.
+
+| View | Contents |
+|---|---|
+| Dom | Badges (weather, Salon air quality, problems and pending updates when there are any), the floor plan (landscape on wide screens, portrait on phones), a photo card per room, the Salon scenes, heating, Klima and vacuum shortcuts |
+| Odkurzacz | Map with room, zone and spot cleaning, start/pause/dock, cleaning mode and suction, station status, consumables |
+| System | Current problems, pending updates with a link to Settings → Updates, Zigbee2MQTT / SLZB / router status, batteries |
+
+Rooms are Bubble Card pop-ups on the Dom view (`#salon`, `#biuro`,
+`#sypialnia`), opened from the floor plan, the room cards or the bottom bar.
+Each holds the room's thermostat, lights, scenes and 24 h sensor graphs.
+
+**Thermostats for Biuro and Sypialnia** are already wired in as
+`climate.termostat_biuro` and `climate.termostat_sypialnia`, inside
+conditional cards that stay hidden while the entity does not exist. Name the
+new TRVs "Termostat biuro" and "Termostat sypialnia" in Zigbee2MQTT and the
+cards appear. Add each new thermostat to the `kluczowe` list in
+`packages/dashboard.yaml` as well.
+
+**Images** live in `config/homeassistant/www/dom/` and are served as
+`/local/dom/…`.
+
+- `plan-landscape.svg` and `plan-portrait.svg` are the same hand-drawn plan,
+  the second rotated a quarter turn clockwise. Wide screens (900 px and up)
+  get the landscape one, phones the portrait one. Elements are positioned in
+  percent of the image, once per orientation, so a changed drawing means
+  re-positioning them in `dom.yaml`.
+- `salon.jpg`, `biuro.jpg` and `sypialnia.jpg` are the room photos, 1600×900.
+  `biuro.jpg` is currently a copy of the Salon photo.
+
+The whole directory is **gitignored** because the repo is public: neither the
+photos nor the apartment plan are committed. The files exist only on the dev
+machine and on the server, so keep a copy. Put them into the server's
+checkout by hand, then run `just sync-config` as usual:
+
+```bash
+ssh homelab 'mkdir -p ~/homelab/config/homeassistant/www/dom'
+scp config/homeassistant/www/dom/* homelab:homelab/config/homeassistant/www/dom/
+```
+
+Where the plan puts devices that the drawing does not show: the chandelier
+over the coffee table, the wall light on the wall above the sofa, Klima in
+the corridor between Salon and Sypialnia, the Salon thermostat on the
+radiator between the windows, the desk lamp on the left desk, the vacuum in
+the built-in next to the bathroom.
+
+**Helper sensors** — `packages/dashboard.yaml`, re-evaluated every minute:
+
+- `sensor.dom_problemy` counts current problems and lists them in its `lista`
+  attribute: a frozen Salon sensor, the TRV in fallback, Zigbee2MQTT
+  disconnected, a key device unavailable, a battery under 20 % (phones and the
+  vacuum excluded).
+- `sensor.dom_aktualizacje` counts `update.*` entities that are `on`.
+
+HA's persistent notifications cannot be listed by a card, so the System view
+shows the conditions behind them instead.
 
 ## Known issues
 
